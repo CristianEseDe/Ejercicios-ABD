@@ -11,6 +11,23 @@ format:
 callout-appearance: minimal
 ---
 
+```{r}
+# Intentar eliminar el directorio si existe y volverlo a crear
+unlink("Lesson-3_Exercises_files", recursive = TRUE)
+dir.create("Lesson-3_Exercises_files", showWarnings = FALSE)
+dir.create("Lesson-3_Exercises_files/figure-html", showWarnings = FALSE, recursive = TRUE)
+
+# Verificar el directorio actual de trabajo
+getwd()
+
+# Verificar si podemos escribir en el directorio actual
+file.access(getwd(), mode = 2)  # 0 significa que sí tenemos permiso, -1 que no
+
+# Ver la ruta completa donde se intentarán guardar los gráficos
+file.path(getwd(), "Lesson-3_Exercises_files", "figure-html")
+```
+
+
 # Introducción
 
 En este hemos visto los fundamentos del modelado Bayesiano, y vamos a aplicarlos desde un punto de vista teórico en los ejercicios a continuación.
@@ -19,6 +36,7 @@ En primer lugar, configuramos el entorno para ejecutar el código.
 
 ```{r setup}
 #| message: false
+
 
 # Paquetes:
 library(tidyverse)
