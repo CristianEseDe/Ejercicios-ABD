@@ -214,7 +214,7 @@ uniforme sería multimodal/"amodal" mientras que en la distribución normal, al 
 La moda puede tomar cualquier valor siempre que el área total bajo la curva de la FD sea 1.
 En el caso de la distribución uniforme, para un rango <1 la moda tomará un valor >1.
 
-```{r ejemplo FD uniforme moda >1}
+```{r ejemplo FD uniforme moda superior 1}
 uniformeEjemplo <- tibble( # Reutilizamos `PREC` del "chunk" de código anterior
   variable = seq(from = 0, to = 0.1, by = PREC),
   densidad = variable |> dunif(min = 0, max = 0.1)
@@ -238,7 +238,7 @@ uniformeEjemplo |>
 
 En el caso de la distribución normal, si es la estandarizada (como se dice al inicio), donde media=0 y var=1, el pico es el que se ha dicho (inferio a 1). Si no es estandarizada, si la varianza es más pequeña la curva o campana es más "puntiaguda", pudiéndose superar el valor 1.
 
-```{r ejemplo FD normal moda >1}
+```{r ejemplo FD normal moda inferior 1}
 normalEjemplo <- tibble( # Reutilizamos `PREC` y  las DENSIDADES del "chunk" de código anterior
   variable = seq(from = DENS_INF, to = DENS_SUP, by = PREC),
   densidad = variable |> dnorm(, sd = 0.25) # Modificamos la desviación típica
@@ -551,9 +551,12 @@ tibble(
 *(Nota: Ten en cuenta la "precisión" al calcular el "peso" de cada muestra.)*
 
 ::: {#respuesta-17 .callout-note}
-```{r}
+```{r Valor-esperado-y-moda}
 # Calcular valor esperado y moda de la posterior
 valor_esperado <- posterior_alpha / (posterior_alpha + posterior_beta)
+
+# Calcular moda analítica
+moda_analitica <- (posterior_alpha - 1) / (posterior_alpha + posterior_beta - 2)
 
 # Calculamos la densidad posterior para cada valor de theta con la precisión dada
 posterior_densidad <- tibble(
@@ -568,7 +571,7 @@ moda_numerica <- posterior_densidad |>
 
 # Comparamos el valor esperado con la moda analítica/numérica
 cat("Valor esperado de la posterior:", valor_esperado, "\n")
-cat("Moda analítica:", moda, "\n")
+cat("Moda analítica:", moda_analitica, "\n")
 cat("Moda numérica (considerando PREC):", moda_numerica, "\n")
 ```
 El valor esperado de 0.75 nos indica una probabilidad esperada del 0.75 de que una nueva persona a la que se le presente la aplicación la descargue 
@@ -896,7 +899,7 @@ $$
 -   Representa las distribuciones previa y posterior de la media; considera un eje que cubra 4 desviaciones típicas a cada lado de la media de la distribución previa. Obten el estimador esperado y modal a partir de esta distribución y compáralos con la solución analítica de la pregunta anterior.
 
 ::: {#respuesta-23 .callout-note}
-```{r}
+```{r distribucion-previa-y-posterior+estimador-esperado-y-modal}
 # Parámetros para el gráfico (4 desviaciones típicas)
 rango_x <- c(mu_0 - 4*sigma_0, mu_0 + 4*sigma_0)
 
