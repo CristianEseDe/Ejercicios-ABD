@@ -184,7 +184,8 @@ El valor máximo de la FD de la distribución normal es 0.399.
 ::: {#respuesta-2 .callout-note}
 La distribución uniforme U(0,1) tiene un valor de densidad constante de 1 a lo largo del dominio [0,1] por lo que no existe un "pico" como tal.
 La distribución normal N(0,1) tiene su pico en x=0 donde el valor de su densidad sería 1/√(2π).
-Como son densidades el pico sería la "moda", es decir, el valor del eje x que aparece con mayor frecuencia en la distribución. La distribución uniforme sería multimodal/"amodal" mientras que en la distribución normal, al ser simetrica, la moda coincide con la media y la mediana.
+Como son densidades el pico sería la "moda", es decir, el valor del eje x que aparece con mayor frecuencia en la distribución. La distribución 
+uniforme sería multimodal/"amodal" mientras que en la distribución normal, al ser simetrica, la moda coincide con la media y la mediana.
 :::
 
 ### Pregunta 3
@@ -366,7 +367,8 @@ betas_comparacion |>
 -   ¿Qué ocurre a medida que van creciendo?
 
 ::: {#respuesta-9 .callout-note}
-Me es difícil responder a las 4 preguntas que siguen de forma separada. Tampoco entiendo a qué te refieres con "crecer" ya que son dos parámetros y el efecto depende de su relación (puede "crecer" β respecto α, α respecto β, crecer a la par...).
+Me es difícil responder a las 4 preguntas que siguen de forma separada. Tampoco entiendo a qué te refieres con "crecer" ya que son dos parámetros y 
+el efecto depende de su relación (puede "crecer" β respecto α, α respecto β, crecer a la par...).
 Voy a dar la respuesta genérica y por consiguiente me voy a repetir en las siguientes preguntas.
 - Cuando α = β, la distribución es simétrica.
 - Cuando α > β, la distribución se sesga hacia la derecha.
@@ -431,7 +433,8 @@ Representa la probabilidad de que un usuario acepte (descargue) la app y al ser 
 *(Ajusta los ejes correctamente, si hace falta, como en la distribución uniforme).*
 
 ::: {#respuesta-14 .callout-note}
-Al pedirnos un modelo "no informativo", asignaremos típicamente a la distribución prior Beta(α,β) un valor (1,1) ya que, como se ha visto antes, es equivalente a la uniforme U(0,1) y representa que a priori consideramos igualmente probable cualquier valor de θ entre 0 y 1.
+Al pedirnos un modelo "no informativo", asignaremos típicamente a la distribución prior Beta(α,β) un valor (1,1) ya que, como se ha visto antes, es 
+equivalente a la uniforme U(0,1) y representa que a priori consideramos igualmente probable cualquier valor de θ entre 0 y 1.
 
 ```{r Dsitribución Beta(1,1)}
 # Cálculo de la función de distribución beta(1,1)
@@ -550,10 +553,13 @@ cat("Valor esperado de la posterior:", valor_esperado, "\n")
 cat("Moda analítica:", moda, "\n")
 cat("Moda numérica (considerando PREC):", moda_numerica, "\n")
 ```
-El valor esperado de 0.75 nos indica una probabilidad esperada del 0.75 de que una nueva persona a la que se le presente la aplicación la descargue (o más bien responda que la descargaría). 
-Este estimador minimiza el error cuadrático medio, mientras que la moda es el estimador máximo a posteriori (MAP) con el valor más probable para la tasa de aceptación de 0.77.
+El valor esperado de 0.75 nos indica una probabilidad esperada del 0.75 de que una nueva persona a la que se le presente la aplicación la descargue 
+(o más bien responda que la descargaría). 
+Este estimador minimiza el error cuadrático medio, mientras que la moda es el estimador máximo a posteriori (MAP) con el valor más probable para 
+la tasa de aceptación de 0.77.
 
-La diferencia entre estos valores y la estimación a priori muestra que los datos introducidos han reducido la incertidumbre actualizando la creencia hacia una distribución concentrada desplazada hacia el "Si".
+La diferencia entre estos valores y la estimación a priori muestra que los datos introducidos han reducido la incertidumbre actualizando la creencia 
+hacia una distribución concentrada desplazada hacia el "Si".
 :::
 
 ## Ajuste con una nueva muestra
@@ -595,7 +601,8 @@ $$
 
 ### Pregunta 19
 
--   Obtén la distribución posterior analítica después de esta segunda muestra, represéntala junto con las dos distribuciones anteriores, y obtén los estimadores posteriores esperado y modal.
+-   Obtén la distribución posterior analítica después de esta segunda muestra, represéntala junto con las dos distribuciones anteriores, y obtén los 
+estimadores posteriores esperado y modal.
 
 ::: {#respuesta-19 .callout-note}
 ```{r distribución-posterior-Beta-2}
@@ -657,7 +664,8 @@ cat("Valor esperado:", valor_esperado_2, "\n")
 cat("Moda:", moda_2, "\n")
 ```
 Nota: con los nuevos datos, la distribución se actualiza a una Beta(18+65, 6+113-65). 
-La nueva posterior es más estrecha (menor incertidumbre) debido al mayor tamaño muestral.
+La nueva posterior es más estrecha (menor incertidumbre) 
+debido al mayor tamaño muestral.
 Sugiere una tasa de aceptación menor (valor esperado/moda en aprox 0.61).
 :::
 
@@ -739,12 +747,18 @@ cat("Moda:", moda_total, "\n")
 -   ¿Qué concluyes de la respuesta anterior? ¿En qué se diferencia este enfoque del análisis de datos clásico o frecuentista?
 
 ::: {#respuesta-21 .callout-note}
-En el caso concreto de la distribución Beta-Binomial solo importan los totales y por tanto el orden en que incorporamos los datos (si es de forma secuencial o colapsada) no afecta al resultado final ya que Beta(α = 1 + total_éxitos,β = 1 + total_fracasos) será la misma. Esto no sería así para otras distribuciones.
+En el caso concreto de la distribución Beta-Binomial solo importan los totales y por tanto el orden en que incorporamos los datos (si es de forma secuencial 
+o colapsada) no afecta al resultado final ya que Beta(α = 1 + total_éxitos,β = 1 + total_fracasos) será la misma. Esto no sería así para otras distribuciones.
 
 En cuanto a las diferencias con el análisis de datos frecuentista:
-1) Interpretación de la probabilidad: En el análisis de datos frecuentista θ es un parámetro fijo y desconocido, y reportaría p̂ = 82/135 como la proporción muestral, mientras que el modelo Bayesiano entiende θ como una variable aleatoria con una distribución de probabilidad que representa la incertidumbre sobre su valor.
-2) Cuantificación de la incertidumbre: El enfoque frecuentista utiliza intervalos de confianza mientras que el Bayesiano proporciona una distribución posterior completa.
-3) Actualización del conocimiento y monitorización secuencial: el enfoque Bayesiano permite incorporar conocimiento previo a través del prior o mirar los datos secuencialmente sin penalización, obteniendo distribuciones posteriores intermedias que cuantifican la incertidumbre en cada momento; el otro enfoque requiere correcciones por multiples comparaciones y no tiene un mecanismo formal para incorporar conocimiento previo.
+1) Interpretación de la probabilidad: En el análisis de datos frecuentista θ es un parámetro fijo y desconocido, y reportaría p̂ = 82/135 como la proporción 
+muestral, mientras que el modelo Bayesiano entiende θ como una variable aleatoria con una distribución de probabilidad que representa la incertidumbre 
+sobre su valor.
+2) Cuantificación de la incertidumbre: El enfoque frecuentista utiliza intervalos de confianza mientras que el Bayesiano proporciona una distribución 
+posterior completa.
+3) Actualización del conocimiento y monitorización secuencial: el enfoque Bayesiano permite incorporar conocimiento previo a través del prior o mirar 
+los datos secuencialmente sin penalización, obteniendo distribuciones posteriores intermedias que cuantifican la incertidumbre en cada momento; el otro enfoque 
+requiere correcciones por multiples comparaciones y no tiene un mecanismo formal para incorporar conocimiento previo.
 
 :::
 
