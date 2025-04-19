@@ -11,22 +11,6 @@ format:
 callout-appearance: minimal
 ---
 
-```{r}
-# Intentar eliminar el directorio si existe y volverlo a crear
-unlink("Lesson-3_Exercises_files", recursive = TRUE)
-dir.create("Lesson-3_Exercises_files", showWarnings = FALSE)
-dir.create("Lesson-3_Exercises_files/figure-html", showWarnings = FALSE, recursive = TRUE)
-
-# Verificar el directorio actual de trabajo
-getwd()
-
-# Verificar si podemos escribir en el directorio actual
-file.access(getwd(), mode = 2)  # 0 significa que sí tenemos permiso, -1 que no
-
-# Ver la ruta completa donde se intentarán guardar los gráficos
-file.path(getwd(), "Lesson-3_Exercises_files", "figure-html")
-```
-
 
 # Introducción
 
@@ -81,6 +65,11 @@ uniforme |> # Usando la tabla de datos antes creada, crea un objeto gráfico
   ylim( # Fija el límite inferior a 0 para mostrar el eje y completo:
     0,  # (Usa la propia distribución para establecer el límite superior)
     uniforme |> pull(densidad) |> max()
+      ) +
+  labs(
+    x = "x",
+    y = "Densidad",
+    title = "Función de Densidad de la Distribución Uniforme"
   )
 ```
 
@@ -101,7 +90,12 @@ normal <- tibble( # Reutilizamos `PREC` del "chunk" de código anterior
 #   es necesario establecer los límites manualmente
 normal |>
   ggplot(mapping = aes(x = variable, y = densidad)) +
-  geom_line(color = color_defecto)
+  geom_line(color = color_defecto) +
+  labs(
+    x = "x",
+    y = "Densidad",
+    title = "Función de Densidad de la Normal Estandarizada"
+  )
 ```
 
 Como puedes ver, los límites se establecen automáticamente para cubrir todo el rango de la distribución (no hace falta fijarlos).
@@ -229,6 +223,11 @@ uniformeEjemplo |>
   geom_line(color = color_defecto) + 
   ylim(0,
     uniformeEjemplo |> pull(densidad) |> max()
+  ) + 
+  labs(
+    x = "x",
+    y = "densidad",
+    title = "Función de Densidad de Distribución Uniforme >1"
   )
 
 # Pico o Moda de la FD Uniforme
@@ -236,7 +235,7 @@ uniformeEjemplo |>
   summarize(max_density = max(densidad))
 ```
 
-En el caso de la distribución normal, si es la estandarizada (como se dice al inicio), donde media=0 y var=1, el pico es el que se ha dicho (inferio a 1). Si no es estandarizada, si la varianza es más pequeña la curva o campana es más "puntiaguda", pudiéndose superar el valor 1.
+En el caso de la distribución normal, si es la estandarizada (como se dice al inicio), donde media=0 y var=1, el pico es el que se ha dicho (inferior a 1). Si no es estandarizada, si la varianza es más pequeña la curva o campana es más "puntiaguda", pudiéndose superar el valor 1.
 
 ```{r ejemplo FD normal moda inferior 1}
 normalEjemplo <- tibble( # Reutilizamos `PREC` y  las DENSIDADES del "chunk" de código anterior
@@ -250,7 +249,12 @@ normalEjemplo |> glimpse()
 # Representación gráfica
 normalEjemplo |>
   ggplot(mapping = aes(x = variable, y = densidad)) +
-  geom_line(color = color_defecto)
+  geom_line(color = color_defecto) +
+  labs(
+    x = "x",
+    y = "Densidad",
+    title = "Función de Densidad de la Normal Estándar >1"
+  )
 
 # Pico o Moda de la FD Normal
 normalEjemplo |> 
@@ -283,7 +287,6 @@ distribucionNormal |>
     title = "Función de distribución de la Normal estándar"
   )
 ```
-Nota: Nos da la probabilidad de que X sea menor o igual que X.
 
 :::
 
@@ -328,6 +331,11 @@ beta_11 |>
   ylim(
     0,
     beta_11 |> pull(densidad) |> max()
+  ) +
+  labs(
+    x = "x",
+    y = "densidad",
+    title = "Función de distribución de Beta(1,1)"
   )
 ```
 
@@ -389,8 +397,8 @@ Me es difícil responder a las 4 preguntas que siguen de forma separada. Tampoco
 el efecto depende de su relación (puede "crecer" β respecto α, α respecto β, crecer a la par...).
 Voy a dar la respuesta genérica y por consiguiente me voy a repetir en las siguientes preguntas.
 - Cuando α = β, la distribución es simétrica.
-- Cuando α > β, la distribución se sesga hacia la derecha.
-- Cuando α < β, la distribución se sesga hacia la izquierda.
+- Cuando α > β, la distribución es asimétrica negativa o izquierda.
+- Cuando α < β, la distribución es asimétrica positiva o derecha.
 - Valores < 1 crean formas en U.
 - Valores > 1 crean formas en campana.
 
@@ -402,7 +410,7 @@ Voy a dar la respuesta genérica y por consiguiente me voy a repetir en las sigu
 
 ::: {#respuesta-10 .callout-note}
 Cuando α = β, la distribución es simétrica en eje x=0.5 y tiene forma de campana/montaña (si α = β > 1), cuadrado (si α = β = 1) o "U" (si α = β < 1).
-Cuando son distintas la distribución se sesga hacia la derecha (cuando α > β) o hacia la izquierda (cuando α < β).
+Cuando son distintas la distribución es asimétrica izquierda (cuando α > β) o asimétrica derecha (cuando α < β).
 
 :::
 
@@ -468,6 +476,11 @@ beta_11 |>
   ylim(
     0,
     beta_11 |> pull(densidad) |> max()
+  ) +
+  labs(
+    x = "x",
+    y = "densidad",
+    title = "Función de distribución de Beta(1,1)"
   )
 ```
 
@@ -478,9 +491,11 @@ beta_11 |>
 -   Supón que $y$ es el número de usuarios/as que han respondido que "Sí" descargarían la app. Formula la verosimilitud del modelo.
 
 ::: {#respuesta-15 .callout-note}
+* Verosimilitud del modelo:
 $$
 (y|θ) \sim binomial(n,θ)
 $$
+* Distribución previa:
 $$
 θ \sim Beta(1,1)
 $$
@@ -553,7 +568,7 @@ tibble(
 ::: {#respuesta-17 .callout-note}
 ```{r Valor-esperado-y-moda}
 # Calcular valor esperado y moda de la posterior
-valor_esperado <- posterior_alpha / (posterior_alpha + posterior_beta)
+valor_esperado_analitico <- posterior_alpha / (posterior_alpha + posterior_beta)
 
 # Calcular moda analítica
 moda_analitica <- (posterior_alpha - 1) / (posterior_alpha + posterior_beta - 2)
@@ -564,13 +579,26 @@ posterior_densidad <- tibble(
   densidad = dbeta(theta, shape1 = posterior_alpha, shape2 = posterior_beta)
 )
 
+# Calcular valor esperado de forma numérica
+valor_esperado_numerico <- posterior_densidad |>
+  mutate(
+    # Para cada punto, multiplicamos theta por su densidad y por PREC
+    producto = theta * densidad * PREC
+  ) |>
+  summarise(
+    # Sumamos todos los productos para obtener la integral
+    valor_esperado = sum(producto)
+  ) |>
+  pull(valor_esperado)
+
 # Encontramos la moda numérica (el valor de theta con mayor densidad)
 moda_numerica <- posterior_densidad |>
   filter(densidad == max(densidad)) |>
   pull(theta)
 
 # Comparamos el valor esperado con la moda analítica/numérica
-cat("Valor esperado de la posterior:", valor_esperado, "\n")
+cat("Valor esperado analítico:", valor_esperado_analitico, "\n")
+cat("Valor esperado numérico:", valor_esperado_numerico, "\n")
 cat("Moda analítica:", moda_analitica, "\n")
 cat("Moda numérica (considerando PREC):", moda_numerica, "\n")
 ```
