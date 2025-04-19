@@ -103,6 +103,42 @@ $$
 -   Utilizando la expresión analítica del modelo, obtén la expresión analítica de la distribución posterior de la media para cada una de las dos clases, con 2 decimales.
 
 ::: {#respuesta-1 .callout-note}
+* Datos facilitados: $( \mu_{pre} ) = 247$ y $( \sigma^2_{pre} ) = 34^2$.
+* $( \bar{y} )$, $( \sigma^2_y )$ y $( n )$ se obtienen de los datos de cada clase.
+
+```{r calculo-posterior-clases}
+# Función para calcular la posterior
+calcula_posterior <- function(datos, mu_previa, sigma2_previa) {
+  n <- nrow(datos)
+  y_barra <- mean(datos$tiempo)
+  sigma2_y <- var(datos$tiempo)
+  
+  mu_post <- (sigma2_y * mu_previa + n * sigma2_previa * y_barra) / (sigma2_y + n * sigma2_previa)
+  sigma2_post <- (sigma2_y * sigma2_previa) / (sigma2_y + n * sigma2_previa)
+  
+  tibble(
+    mu_post = round(mu_post, 2),
+    sigma2_post = round(sigma2_post, 2)
+  )
+}
+
+# Resultados para cada clase
+posterior_clase_1 <- calcula_posterior(clase_1, MU_PREVIA, SIGMA2_PREVIA)
+posterior_clase_2 <- calcula_posterior(clase_2, MU_PREVIA, SIGMA2_PREVIA)
+
+paste(
+  "La posterior de la Clase 1 es N(μ=",
+  posterior_clase_1$mu_post, ", σ=",
+  posterior_clase_1$sigma2_post, ")"
+)
+
+paste(
+  "La posterior de la Clase 2 es N(μ=",
+  posterior_clase_2$mu_post, ", σ=",
+  posterior_clase_2$sigma2_post, ")"
+)
+```
+
 :::
 
 ## Simulación de Monte Carlo
@@ -121,6 +157,21 @@ set.seed(20250318)
 ```
 
 ::: {#respuesta-2 .callout-note}
+```{r muestra500-distribucion-clases}
+# 500 muestras para cada clase
+muestras_clase_1 <- rnorm(
+  500,
+  mean = posterior_clase_1$mu_post,
+  sd   = sqrt(posterior_clase_1$sigma2_post)
+)
+
+muestras_clase_2 <- rnorm(
+  500,
+  mean = posterior_clase_2$mu_post,
+  sd   = sqrt(posterior_clase_2$sigma2_post)
+)
+```
+
 :::
 
 ## Inferencia con la media de la distribución posterior
@@ -130,6 +181,24 @@ set.seed(20250318)
 -   Con las distribuciones simuladas de la pregunta anterior, estima la media y la varianza de cada distribución. Compara los resultados con los obtenidos en la Pregunta 1.
 
 ::: {#respuesta-3 .callout-note}
+```{r}
+# Media y varianza de las simulaciones (Monte Carlo)
+media_mc_1    <- mean(muestras_clase_1)
+varianza_mc_1 <- var(muestras_clase_1)
+
+media_mc_2    <- mean(muestras_clase_2)
+varianza_mc_2 <- var(muestras_clase_2)
+
+# Comparación con los valores analíticos
+tibble(
+  clase      = c("Clase 1", "Clase 2"),
+  media_mc   = c(media_mc_1, media_mc_2),
+  var_mc     = c(varianza_mc_1, varianza_mc_2),
+  media_analitica = c(posterior_clase_1$mu_post, posterior_clase_2$mu_post),
+  var_analitica   = c(posterior_clase_1$sigma2_post, posterior_clase_2$sigma2_post)
+)
+```
+El método Monte Carlo aproxima características de una distribución generando muchas muestras aleatorias y calculando sobre ellas. No da el valor exacto, pero cuanto más simules, más preciso será el resultado.
 :::
 
 ## Tamaño muestral y error estándar de Monte Carlo
@@ -139,6 +208,54 @@ set.seed(20250318)
 -   Calcula el error estándar de Monte Carlo de las medias estimadas por el método de Monte Carlo [@hoff2009, p. 56], y su intervalo al 95% de confianza (p. 57). Asume que las varianzas verdaderas son desconocidas (i.e., utiliza las varianzas obtenidas por el método de Monte Carlo). ¿Cuál es la amplitud de los intervalos? Comprueba si los valores reales (obtenidos analíticamente) están comprendidos en los intervalos
 
 ::: {#respuesta-4 .callout-note}
+a) El error estándar de Monte Carlo (MCSE) para la media estimada es: $$\text{MCSE} = \frac{\text{sd}(\text{muestras})}{\sqrt{n}}$$
+donde:
+
+$\text{sd}(\text{muestras})$ es la desviación estándar de las muestras simuladas,
+$n$ es el número de simulaciones (en este caso, 500).
+
+b) El  intervalo de confianza al 95% para la media estimada es: $$\left[\bar{x} - 1.96 \cdot \text{MCSE},\ \bar{x} + 1.96 \cdot \text{MCSE}\right]$$ 
+
+donde $\bar{x}$ es la media de las simulaciones.
+
+c) Verifica si la media analítica (preg.1) está dentro del intervalo calculado.
+
+d) La amplitud de intérvalo es la diferencia entre el extremo superior e inferior del intervalo.
+
+```{r MCSE-para-media-estimada}
+# Clase 1
+n_1 <- length(muestras_clase_1)
+media_mc_1 <- mean(muestras_clase_1)
+sd_mc_1 <- sqrt(var(muestras_clase_1)) # El enunciado pide explícitamente usar la varianza, pero se podría usar sd(muestras_clase_1) en su lugar
+mcse_1 <- sd_mc_1 / sqrt(n_1)
+ic_95_inf_1 <- media_mc_1 - 1.96 * mcse_1
+ic_95_sup_1 <- media_mc_1 + 1.96 * mcse_1
+amplitud_1 <- ic_95_sup_1 - ic_95_inf_1
+dentro_1 <- posterior_clase_1$mu_post >= ic_95_inf_1 & posterior_clase_1$mu_post <= ic_95_sup_1
+
+# Clase 2
+n_2 <- length(muestras_clase_2)
+media_mc_2 <- mean(muestras_clase_2)
+sd_mc_2 <- sqrt(var(muestras_clase_2))
+mcse_2 <- sd_mc_2 / sqrt(n_2)
+ic_95_inf_2 <- media_mc_2 - 1.96 * mcse_2
+ic_95_sup_2 <- media_mc_2 + 1.96 * mcse_2
+amplitud_2 <- ic_95_sup_2 - ic_95_inf_2
+dentro_2 <- posterior_clase_2$mu_post >= ic_95_inf_2 & posterior_clase_2$mu_post <= ic_95_sup_2
+
+# Resultados en tabla
+tibble(
+  clase = c("Clase 1", "Clase 2"),
+  media_mc = c(media_mc_1, media_mc_2),
+  mcse = c(mcse_1, mcse_2),
+  ic_95_inf = c(ic_95_inf_1, ic_95_inf_2),
+  ic_95_sup = c(ic_95_sup_1, ic_95_sup_2),
+  amplitud = c(amplitud_1, amplitud_2),
+  media_analitica = c(posterior_clase_1$mu_post, posterior_clase_2$mu_post),
+  dentro_intervalo = c(dentro_1, dentro_2)
+)
+```
+
 :::
 
 ### Pregunta 5
@@ -146,6 +263,53 @@ set.seed(20250318)
 -   En base a las varianzas obtenidas por el método de Monte Carlo, determina el tamaño muestral de la distribución posterior necesario para alcanzar una precisión de 2 decimales en la estimación de la media de las distribuciones posteriores [@hoff2009, p. 56 ---vas a tener que "despejar" el tamaño de la muestra simulada]. Utiliza el valor mayor de ambas distribuciones para volver a calcular las medias, y comprueba si se alcanza la precisión esperada.
 
 ::: {#respuesta-5 .callout-note}
+* Precisión de 2 decimales implica que el error estándar de Monte Carlo (MCSE) debe ser como máximo 0.005.
+
+La fórmula del error estándar de Monte Carlo es: $$\text{MCSE} = \frac{\text{sd}}{\sqrt{n}}$$ 
+Queremos que MCSE ≤ 0.005. Despejando $n$: $$n \geq \left(\frac{\text{sd}}{0.005}\right)^2$$ 
+Donde $sd$ es el valor mayor de la desviación estándar de las muestras simuladas.
+
+
+```{r tamaño-muestral-MCSE0.005}
+# 1. Obtener la desviación estándar mayor de ambas distribuciones simuladas
+sd_max <- max(sd(muestras_clase_1), sd(muestras_clase_2))
+
+# 2. Calcular el tamaño muestral necesario para MCSE <= 0.005
+mcse_objetivo <- 0.005
+n_necesario <- ceiling((sd_max / mcse_objetivo)^2)
+
+# 3. Volver a simular con ese tamaño muestral
+set.seed(20250318)
+muestras_clase_1_preciso <- rnorm(
+  n_necesario,
+  mean = posterior_clase_1$mu_post,
+  sd   = sqrt(posterior_clase_1$sigma2_post)
+)
+muestras_clase_2_preciso <- rnorm(
+  n_necesario,
+  mean = posterior_clase_2$mu_post,
+  sd   = sqrt(posterior_clase_2$sigma2_post)
+)
+
+# 4. Recalcular las medias y el MCSE
+media_1_preciso <- mean(muestras_clase_1_preciso)
+mcse_1_preciso  <- sd(muestras_clase_1_preciso) / sqrt(n_necesario)
+
+media_2_preciso <- mean(muestras_clase_2_preciso)
+mcse_2_preciso  <- sd(muestras_clase_2_preciso) / sqrt(n_necesario)
+
+# 5. Mostrar resultados
+tibble(
+  clase = c("Clase 1", "Clase 2"),
+  media_simulada = c(media_1_preciso, media_2_preciso),
+  mcse = c(mcse_1_preciso, mcse_2_preciso),
+  media_analitica = c(posterior_clase_1$mu_post, posterior_clase_2$mu_post),
+  diferencia = c(abs(media_1_preciso - posterior_clase_1$mu_post),
+                 abs(media_2_preciso - posterior_clase_2$mu_post)),
+  precision_2_decimales = c(mcse_1_preciso <= mcse_objetivo, mcse_2_preciso <= mcse_objetivo)
+)
+```
+
 :::
 
 ## Inferencia de intervalos y probabilidades
@@ -163,6 +327,48 @@ set.seed(20250318)
 Obtén los resultados analíticos con las funciones `qnorm()` y `pnorm()`, y compara ambos.
 
 ::: {#respuesta-6 .callout-note}
+```{r}
+# Intervalos de credibilidad del 99% (simulación)
+ic_99_clase_1_sim <- quantile(muestras_clase_1_preciso, c(0.005, 0.995))
+ic_99_clase_2_sim <- quantile(muestras_clase_2_preciso, c(0.005, 0.995))
+
+# Intervalos de credibilidad del 99% (analítico)
+ic_99_clase_1_ana <- qnorm(c(0.005, 0.995), mean = posterior_clase_1$mu_post, sd = sqrt(posterior_clase_1$sigma2_post))
+ic_99_clase_2_ana <- qnorm(c(0.005, 0.995), mean = posterior_clase_2$mu_post, sd = sqrt(posterior_clase_2$sigma2_post))
+
+# Cuartiles (simulación)
+cuartiles_clase_1_sim <- quantile(muestras_clase_1_preciso, c(0.25, 0.75))
+cuartiles_clase_2_sim <- quantile(muestras_clase_2_preciso, c(0.25, 0.75))
+
+# Cuartiles (analítico)
+cuartiles_clase_1_ana <- qnorm(c(0.25, 0.75), mean = posterior_clase_1$mu_post, sd = sqrt(posterior_clase_1$sigma2_post))
+cuartiles_clase_2_ana <- qnorm(c(0.25, 0.75), mean = posterior_clase_2$mu_post, sd = sqrt(posterior_clase_2$sigma2_post))
+
+# Probabilidad de media menor que la de la población (simulación)
+prob_clase_1_sim <- mean(muestras_clase_1_preciso < MU_PREVIA)
+prob_clase_2_sim <- mean(muestras_clase_2_preciso < MU_PREVIA)
+
+# Probabilidad de media menor que la de la población (analítico)
+prob_clase_1_ana <- pnorm(MU_PREVIA, mean = posterior_clase_1$mu_post, sd = sqrt(posterior_clase_1$sigma2_post))
+prob_clase_2_ana <- pnorm(MU_PREVIA, mean = posterior_clase_2$mu_post, sd = sqrt(posterior_clase_2$sigma2_post))
+
+# Resultados en tabla
+tibble(
+  clase = c("Clase 1", "Clase 2"),
+  ic_99_sim_inf = c(ic_99_clase_1_sim[1], ic_99_clase_2_sim[1]),
+  ic_99_sim_sup = c(ic_99_clase_1_sim[2], ic_99_clase_2_sim[2]),
+  ic_99_ana_inf = c(ic_99_clase_1_ana[1], ic_99_clase_2_ana[1]),
+  ic_99_ana_sup = c(ic_99_clase_1_ana[2], ic_99_clase_2_ana[2]),
+  cuartil_25_sim = c(cuartiles_clase_1_sim[1], cuartiles_clase_2_sim[1]),
+  cuartil_75_sim = c(cuartiles_clase_1_sim[2], cuartiles_clase_2_sim[2]),
+  cuartil_25_ana = c(cuartiles_clase_1_ana[1], cuartiles_clase_2_ana[1]),
+  cuartil_75_ana = c(cuartiles_clase_1_ana[2], cuartiles_clase_2_ana[2]),
+  prob_sim = c(prob_clase_1_sim, prob_clase_2_sim),
+  prob_ana = c(prob_clase_1_ana, prob_clase_2_ana)
+)
+```
+
+
 :::
 
 ## Reflexión sobre el método de Monte Carlo
@@ -172,6 +378,13 @@ Obtén los resultados analíticos con las funciones `qnorm()` y `pnorm()`, y com
 -   ¿Qué opinas del método de Monte Carlo? ¿Te resulta fácil o difícil de aplicar? ¿Qué consideras que aporta respecto de obtener los parámetros de los modelos aplicando las fórmulas analíticas?
 
 ::: {#respuesta-7 .callout-note}
+Hasta el momento me parece una herramienta poderosa y sorprendentemente accesible.
+
+El método es sencillo de implementar (en este caso en R), sobretodo con distribuciones conocidas. Basta con simular muchas muestras y calcular estadísticas básicas sobre ellas aplicando funciones.
+
+En los ejercicios se ha visto que  los resputados aplicar Monte Carlo, no suficientes simulaciones, son prácticamente idénticos a los que se obtienen analíticamente. Esto, además de dar validez al método, da confianza para usarlo cuando no existe una solución analítica o problemas donde las fórmulas analíticas son imposibles o muy complicadas de obtener (por contra puede ser menos eficiente cuando ésta existe y es fácil de aplicar).
+
+Además da flexibilidad para calcular medidas de dispersión, distribución... Facilita la visualización y comprensión de la incertidumbre y es adaptable a cambios del supuesto o modelo.
 :::
 
 ## Inferencia con funciones derivadas
@@ -181,6 +394,41 @@ Obtén los resultados analíticos con las funciones `qnorm()` y `pnorm()`, y com
 -   Calcula la probabilidad de que la media de la segunda clase sea superior a la media de la primera clase usando el método de Monte Carlo. ¿Cómo lo harías usando la fórmula analítica? ¿Es más fácil o más difícil?
 
 ::: {#respuesta-8 .callout-note}
+A) Probabilidad según Monte Carlo:
+Como ya tenemos simulaciones de alta precisión para ambas clases con *muestras_clase_1_preciso* y *muestras_clase_2_preciso* lo que haría sería calcular la proporción de veces que la media simulada de la clase 2 es mayor que la de la clase 1 (comparando vectores de simulaciones).
+
+```{r probabilidad-comparación-medias-MC}
+# Método de Monte Carlo
+prob_mc <- mean(muestras_clase_2_preciso > muestras_clase_1_preciso)
+```
+
+B) Probabilidad Analítica:
+* Las medias posteriores de ambas clases son normales independientes: 
+$$\mu_1 \sim N(\mu_{post,1}, \sigma^2_{post,1})$$
+$$\mu_2 \sim N(\mu_{post,2}, \sigma^2_{post,2})$$
+* La diferencia $\mu_2 - \mu_1$ es también normal:
+$$\mu_2 - \mu_1 \sim N(\mu_{post,2} - \mu_{post,1}, \sigma^2_{post,2} + \sigma^2_{post,1})$$
+* La probabilidad es: 
+$$P(\mu_2 > \mu_1) = P(\mu_2 - \mu_1 > 0) = 1 - \text{pnorm}\left(0,, \mu_{post,2} - \mu_{post,1},, \sqrt{\sigma^2_{post,2} + \sigma^2_{post,1}}\right)$$
+
+
+```{r probabilidad-comparación-medias-analítica}
+# Método analítico
+media_diff <- posterior_clase_2$mu_post - posterior_clase_1$mu_post
+sd_diff <- sqrt(posterior_clase_2$sigma2_post + posterior_clase_1$sigma2_post)
+prob_ana <- 1 - pnorm(0, mean = media_diff, sd = sd_diff)
+```
+La fórmula analítica es más enrevesada y como se puede observar a continuación los resultados son muy similares (idénticos a 3 decimales):
+
+```{r Comparar-metodo-probabilidades}
+# Mostrar resultados
+tibble(
+  metodo = c("Monte Carlo", "Analítico"),
+  probabilidad = c(prob_mc, prob_ana)
+)
+```
+
+
 :::
 
 ### Pregunta 9
@@ -188,6 +436,31 @@ Obtén los resultados analíticos con las funciones `qnorm()` y `pnorm()`, y com
 -   Las muestras obtenidas para distribución posterior de la media de cada una de las dos clases son independientes. Por lo tanto, debería dar igual en qué orden se hayan muestreado. Utilizando `sample(_vector_)` podemos obtener los valores aleatorizado del vector en un objeto `_vector_`. Comprueba si se cumple que podemos aleatorizar las muestras de una (o ambas) distribuciones posteriores, y que la probabilidad de que las dos clases sean diferentes aún así no cambie.
 
 ::: {#respuesta-9 .callout-note}
+```{r}
+# Aleatorizar las muestras de la clase 2
+set.seed(123)  # Para reproducibilidad
+muestras_clase_2_aleat <- sample(muestras_clase_2_preciso)
+
+# Calcular la probabilidad tras aleatorizar
+prob_mc_aleat <- mean(muestras_clase_2_aleat > muestras_clase_1_preciso)
+
+# Aleatorizar ambas muestras (opcional)
+set.seed(456)
+muestras_clase_1_aleat <- sample(muestras_clase_1_preciso)
+prob_mc_ambas_aleat <- mean(muestras_clase_2_aleat > muestras_clase_1_aleat)
+
+# Mostrar resultados
+tibble(
+  caso = c("Original", "Clase 2 aleatorizada", "Ambas aleatorizadas"),
+  probabilidad = c(
+    mean(muestras_clase_2_preciso > muestras_clase_1_preciso),
+    prob_mc_aleat,
+    prob_mc_ambas_aleat
+  )
+)
+```
+Las muestras de ambas distribuciones son independientes. El orden de los elementos en cada factor no afecta a la probabilidad conjunta, porque cada posición es una muestra independiente de la distribución, por tanto las probabilidades estimadas ha de ser prácticamente el mismo salvo pequeñas diferencias debidas al azar. En este caso no hay diferencia >0.0005.
+
 :::
 
 ## Estimador máximo posterior
@@ -243,6 +516,35 @@ El estimador MAP es `{r} moda`, siendo su densidad `{r} densidad_max`.
 -   Utilizando las muestras posteriores obtenidas en la pregunta 5, calcula los estimadores MAP para las dos clases, y compáralos con los que obtendrías con las fómulas analíticas.
 
 ::: {#respuesta-10 .callout-note}
+```{r calculo-MAP-clases}
+# Para la Clase 1
+densidad_1 <- density(muestras_clase_1_preciso)
+densidad_clase_1 <- tibble(
+  x = densidad_1$x,
+  densidad = densidad_1$y
+)
+estimador_map_1 <- densidad_clase_1 |> slice(which.max(densidad))
+moda_1 <- estimador_map_1 |> pull(x)
+densidad_max_1 <- estimador_map_1 |> pull(densidad)
+
+# Para la Clase 2
+densidad_2 <- density(muestras_clase_2_preciso)
+densidad_clase_2 <- tibble(
+  x = densidad_2$x,
+  densidad = densidad_2$y
+)
+estimador_map_2 <- densidad_clase_2 |> slice(which.max(densidad))
+moda_2 <- estimador_map_2 |> pull(x)
+densidad_max_2 <- estimador_map_2 |> pull(densidad)
+
+# Comparación con el valor analítico (media de la posterior)
+tibble(
+  clase = c("Clase 1", "Clase 2"),
+  map_mc = c(moda_1, moda_2),
+  map_analitico = c(posterior_clase_1$mu_post, posterior_clase_2$mu_post)
+)
+```
+Vemos que los estimadores MAP a través de Monte Carlo son bastante ajustados a los MAPs analíticos.
 :::
 
 # Ejercicio 2: Distribuciones Gamma
@@ -267,6 +569,52 @@ La distribución Gamma está implementada en R mediante la familia de funciones 
 -   Utilizando un eje horizontal con precisión de .002, representa las dos distribuciones. Determina los límites del eje horizontal según tu propio criterio. Sin ver la forma de la función de densidad, ¿podrías deducir cuál habría de ser alguno de los dos límites del intervalo?
 
 ::: {#respuesta-11 .callout-note}
+* El límite inferior natural es 0, ya que la distribución Gamma es siempre positiva ($(\theta > 0)$).
+* El límite superior debe ser lo suficientemente grande para cubrir la mayor parte de la densidad de ambas distribuciones. Por lo que debería ser algo mayor que la media más varias desviaciones estándar de la distribución con mayor media y varianza. Donde:
+  - Media: $ \mu = \frac{shape}{rate}$
+  - Varianza: $\sigma = \frac{shape}{rate^2}$
+* No hay una respuesta correcta para el número de desviaciones estándar a escoger como criterio, pero en general, para distribuciones normales se suelen escoger 3 sd (regla empírica 68-95-99.7) y con distribuciones Gamma se debería dejar algo más de margen ya que hay Gammas asimétricas que tienen colas más largas.
+
+```{r representación-Gammas}
+# Parámetros
+shape_sin <- 219
+rate_sin  <- 112
+shape_con <- 68
+rate_con  <- 45
+
+# Medias y desviaciones estándar
+media_sin <- shape_sin / rate_sin
+media_con <- shape_con / rate_con
+sd_sin <- sqrt(shape_sin / rate_sin^2)
+sd_con <- sqrt(shape_con / rate_con^2)
+
+# Límite superior en media + 5 sd de la distribución más dispersa
+limite_sup <- max(media_sin + 5*sd_sin, media_con + 5*sd_con)
+
+# Creamos el eje con los límites y precisión 0.002
+x <- seq(0, limite_sup, by = 0.002)
+
+# Calculamos las densidades
+densidades <- tibble(
+  x = x,
+  gamma_sin = dgamma(x, shape = shape_sin, rate = rate_sin),
+  gamma_con = dgamma(x, shape = shape_con, rate = rate_con)
+) |> 
+  pivot_longer(-x, names_to = "grupo", values_to = "densidad")
+
+# Representamos las probabilidades
+ggplot(densidades, aes(x = x, y = densidad, color = grupo)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Distribuciones Gamma de tasas de fertilidad",
+    x = "Tasa de fertilidad",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+
+```
+
+
 :::
 
 ### Pregunta 12
@@ -274,6 +622,69 @@ La distribución Gamma está implementada en R mediante la familia de funciones 
 -   Determina la probabilidad de que las mujeres de 40 años sin título universitario en los 90 en EEUU tuvieran una tasa de fertilidad superior a la de las mujeres con título universitario. Utiliza el método de Monte Carlo con 3 decimales de precisión al 99% de confianza, justificando el tamaño muestral elegido para aproximar las distribuciones posteriores (usa la media para justificar esta precisión). Si lo necesitas, revisa el material complementario del Tema 3 para determinar la varianza de la distribución Gamma.
 
 ::: {#respuesta-12 .callout-note}
+```{r parametros-base}
+# Calcular los parámetros de las dos distribuciones Gamma
+shape_sin <- 219
+rate_sin  <- 112
+shape_con <- 68
+rate_con  <- 45
+
+media_sin <- shape_sin / rate_sin
+media_con <- shape_con / rate_con
+sd_sin <- sqrt(shape_sin) / rate_sin
+sd_con <- sqrt(shape_con) / rate_con
+
+tibble(
+  grupo      = c("Sin titulación", "Con titulación"),
+  media_fert   = c(media_sin, media_con),
+  sd_fert     = c(sd_sin, sd_con)
+)
+```
+Queremos que el error estándar de Monte Carlo (MCSE para la media estimada sea ≤ 0.0005 (para asegurar 3 decimales con un 99% de confianza, ya que el intervalo será ±2.58·MCSE).
+
+La  fórmula es: $$\text{MCSE} = \frac{\text{sd}}{\sqrt{n}}$$ 
+Para que el intervalo al 99% sea menor o igual a 0.001 (3 decimales), despejamos $n$:
+
+$2.58 \cdot \frac{\text{sd}}{\sqrt{n}} \leq 0.001 \implies n \geq \left(\frac{2.58 \cdot \text{sd}}{0.001}\right)^2$
+
+```{r tamaño-n-para-MSCE0.0005}
+# Calcular n necesario para una precisión de 3 decimales
+z_99 <- qnorm(0.995)  # 99% bilateral: 2.58 aprox
+mcse_objetivo <- 0.001 / z_99
+sd_max <- max(sd_sin, sd_con)
+n_necesario <- ceiling((sd_max / mcse_objetivo)^2)
+```
+
+Una vez se tienen todos los datos, se calcula:
+
+```{r probabilidad-fertilidad-estudios}
+# Simular muestras
+set.seed(20250419)
+muestras_sin <- rgamma(n_necesario, shape = shape_sin, rate = rate_sin)
+muestras_con <- rgamma(n_necesario, shape = shape_con, rate = rate_con)
+
+# Calcular probabilidad tasa fertilidad sin > con título
+prob_mc <- mean(muestras_sin > muestras_con)
+
+# Calcular MSCE e intérvalo de confianza
+mcse_prob <- sqrt(prob_mc * (1 - prob_mc) / n_necesario)
+ic_99_inf <- prob_mc - z_99 * mcse_prob
+ic_99_sup <- prob_mc + z_99 * mcse_prob
+
+# Representar resultados
+tibble(
+  probabilidad = prob_mc,
+  mcse = mcse_prob,
+  ic_99_inf = ic_99_inf,
+  ic_99_sup = ic_99_sup,
+  n_necesario = n_necesario
+)
+```
+Se obtiene una probabilidad estimada de 0.972 de que la tasa de fertilidad de mujeres sin título universitario sea superior a las tituladas para ese grupo poblacional y periodo. El MSCE es muy pequeño (0.000348), y el intervalo de confianza al 99% es muy estrecho: [0.971, 0.973]. Esto significa que la estimación es muy precisa y robusta.
+
+Cuando hay dos variables aleatorias independientes, cada una con una distribución gamma diferente, la diferencia entre ellas no sigue ninguna distribución estándar conocida (no existe fórmula cerrada para su distribución, así como sí que existe por ejemplo *pnorm()* para dos distribuciones normales). Una gran ventaja del método Monte Carlo aquí es que no se necesita conocer la distribución de la diferencia ya que simplemente simulas las gammas y calculas directamente la proporción de veces donde $X > Y$.
+
+Se ha comprobado que la simulación permite obtener no solo estimaciones puntuales sino también ICs. Se puede controlar la precisión aumentando el tamaño muestral, pero puede requerir un número muy grande de simulaciones si buscas precisión extrema (p.e. en este caso la muestra necesaria ha sido de $n=222802$).
 :::
 
 # Referencias
