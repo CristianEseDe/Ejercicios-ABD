@@ -609,9 +609,7 @@ ggplot(densidades, aes(x = x, y = densidad, color = grupo)) +
     title = "Distribuciones Gamma de tasas de fertilidad",
     x = "Tasa de fertilidad",
     y = "Densidad"
-  ) +
-  theme_minimal()
-
+  )
 ```
 
 
