@@ -186,11 +186,11 @@ legend("topright", legend = "Beta(1,1) teórica", col = "red", lwd = 2)
 **3) Histograma para interpretar resultados simulados.**
 
 ```{r simula-pruebas-muestra}
-n_muestra1 <- length(aceptacion_muestra_1$id_participante)  # Tamaño de la primera muestra
+n_muestra_1 <- length(aceptacion_muestra_1$id_participante)  # Tamaño de la primera muestra
 
 # Simula la distribución predictiva previa
 set.seed(123)
-resultados_binomiales <- rbinom(length(theta_samples), size = n_muestra1, prob = theta_samples)
+resultados_binomiales <- rbinom(length(theta_samples), size = n_muestra_1, prob = theta_samples)
 
 # Visualización de la distribución predictiva previa
 tabla_pred <- table(resultados_binomiales)
@@ -275,13 +275,13 @@ Se concluye que:
 # Número de simulaciones usado previamente
 n_sim <- length(theta_samples)  # theta_samples es el vector de la previa
 
-# Datos observados
-k <- n_aceptaciones_obs  # éxitos, ya calculado anteriormente
-n <- nrow(aceptacion_muestra_1)                           # tamaño muestra
+# Datos observados ya calculados anteriormente
+# n_aceptaciones_obs = k, éxitos
+# n_muestra_1 = n, tamaño muestra
 
 # Parámetros de la posterior
-alpha_post <- alpha + k  # alpha ya fue definido como 1
-beta_post <- beta + n - k  # beta ya fue definido como 1
+alpha_post <- alpha + n_aceptaciones_obs  # alpha ya fue definido como 1
+beta_post <- beta + n_muestra_1 - n_aceptaciones_obs  # beta ya fue definido como 1
 
 # Simulación Monte Carlo de la posterior
 set.seed(123)
@@ -315,7 +315,7 @@ legend("topleft", legend = c("Previo", "Posterior"),
 ```{r simulacion-resultados-binomiales}
 # Simula la distribución predictiva posterior
 set.seed(123)
-resultados_binomiales_post <- rbinom(length(theta_post_samples), size = n_muestra1,  # Ya tenemos theta_post_samples y n_muestra1 definidos previamente
+resultados_binomiales_post <- rbinom(length(theta_post_samples), size = n_muestra_1,  # Ya tenemos theta_post_samples y n_muestra_1 definidos previamente
               prob = theta_post_samples)
 
 # Visualización
@@ -343,16 +343,16 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 
 ```{r distribucion-posterior+predictiva-muestra2}
 # Datos observados en la muestra 2
-k2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")  # éxitos
-n2 <- nrow(aceptacion_muestra_2)  # tamaño muestra
+n_aceptaciones_obs2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")  # éxitos
+n_muestra_2 <- nrow(aceptacion_muestra_2)  # tamaño muestra
 
 # Simulación previa (opcional, si quieres comparar)
 set.seed(123)
 theta_prev_samples2 <- rbeta(n_sim, alpha, beta)  # parámetros ya definidos previamente
 
 # Parámetros de la posterior
-alpha_post2 <- alpha + k2
-beta_post2 <- beta + n2 - k2
+alpha_post2 <- alpha + n_aceptaciones_obs2
+beta_post2 <- beta + n_muestra_2 - n_aceptaciones_obs2
 
 # Simulación Monte Carlo de la posterior
 set.seed(123)
@@ -370,7 +370,7 @@ legend("topright", legend = c("Previo", "Posterior"),
 
 # Simulación predictiva posterior
 set.seed(123)
-resultados_binomiales_post2 <- rbinom(n_sim, size = n2, prob = theta_post_samples2)
+resultados_binomiales_post2 <- rbinom(n_sim, size = n_muestra_2, prob = theta_post_samples2)
 
 # Visualización predictiva posterior
 tabla_post2 <- table(resultados_binomiales_post2)
@@ -415,7 +415,7 @@ En conclusión:
 ```{r binomial-posterior-n22+representacion-m1+m2}
 # Simular la predictiva posterior para n = 22 usando la posterior de muestra 2
 set.seed(123)
-resultados_binomiales_post2_n22 <- rbinom(length(theta_post_samples2), size = n, prob = theta_post_samples2) # n = n muestra 1 (ya calculado)
+resultados_binomiales_post2_n22 <- rbinom(length(theta_post_samples2), size = n_muestra_1, prob = theta_post_samples2) # n_muestra_1 ya calculado
 
 # Predictiva posterior muestra 1 = resultados_binomiales_post
 
@@ -533,17 +533,16 @@ Sugiere que el resultado de la muestra 1 es relativamente inusual bajo la hipót
 ::: {#respuesta-10 .callout-note}
 ```{r probabilidad-valor-muestra1-vs-muestra2}
 # Ya tenemos theta_post_samples (posterior ajustada con muestra 1)
-# También n2 (número de observaciones de la muestra 2)
+# También n_muestra_2 (número de observaciones de la muestra 2)
 
 # Simular la predictiva posterior para n = 113
 set.seed(123)
-resultados_binomiales_post1_n113 <- rbinom(length(theta_post_samples), size = n2, prob = theta_post_samples) # Ya tenemos las muestras de la posterior de theta ajustada con la muestra 1 = theta_post_samples
+resultados_binomiales_post1_n113 <- rbinom(length(theta_post_samples), size = n_muestra_2, prob = theta_post_samples)
 
-# Valor empírico de la muestra 2
-valor_obs2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")
+# Valor empírico de la muestra 2 = n_aceptaciones_obs2
 
 # Calcular el valor-p predictivo posterior
-valor_p_pred_2_muestra1 <- mean(resultados_binomiales_post1_n113 >= valor_obs2)
+valor_p_pred_2_muestra1 <- mean(resultados_binomiales_post1_n113 >= n_aceptaciones_obs2)
 cat("Valor-p predictivo posterior (muestra 2 bajo modelo muestra 1):", valor_p_pred_2_muestra1, "\n")
 ```
 Un valor-p predictivo posterior de 0.954 indica que, bajo el modelo ajustado con la muestra 1, hay un 95.4% de probabilidad de observar un número de aceptaciones igual o mayor al observado en la muestra 2.
