@@ -892,12 +892,12 @@ Revisar los datos originales de *fertilidad_gss_1990* para identificar el máxim
 
 ```{r maximo-numero-hijos}
 # Máximo número de hijos en la distribución empírica
-max_empirico_con <- fertilidad_gss_1990 %>%
+max_hijos_emp <- fertilidad_gss_1990 %>%
   filter(titulo_uni == "con", frecuencia > 0) %>%
   pull(n_hijos) %>%
   max()
 
-max_empirico_sin <- fertilidad_gss_1990 %>%
+max_hijos_emp_sin <- fertilidad_gss_1990 %>%
   filter(titulo_uni == "sin", frecuencia > 0) %>%
   pull(n_hijos) %>%
   max()
@@ -908,8 +908,8 @@ max_pred_sin <- max(y_pred_sin)
 
 # Mostrar resultados
 cat("Distribución empírica:\n")
-cat("- Máximo número de hijos (con título):", max_empirico_con, "\n")
-cat("- Máximo número de hijos (sin título):", max_empirico_sin, "\n\n")
+cat("- Máximo número de hijos (con título):", max_hijos_emp, "\n")
+cat("- Máximo número de hijos (sin título):", max_hijos_emp_sin, "\n\n")
 
 cat("Distribución predictiva posterior:\n")
 cat("- Máximo número de hijos (con título):", max_pred_con, "\n")
@@ -957,15 +957,15 @@ Por ejemplo, *max_poisson(3.5, 100)* devolvería el mayor número de hijos simul
 # Parámetros ya definidos
 # lambda_con    : vector de simulaciones de la posterior Gamma para grupo de mujeres con titulación universitaria
 # n_con         : tamaño de la muestra universitaria
-# max_empirico_con: máximo hijos observado en la muestra con titulación universitaria
+# max_hijos_emp : máximo hijos observado en la muestra con titulación universitaria
 
 # Simular el máximo para cada valor de lambda
 max_sim <- map_int(lambda_con, ~ max_poisson(.x, n_con))
 
 # Calcular el valor-p predictivo posterior
-p_valor_predictivo <- mean(max_sim <= max_empirico_con)
+p_valor_predictivo <- mean(max_sim <= max_hijos_emp)
 
-cat("Valor-p predictivo posterior  P(max ≤", max_empirico_con, ") =",
+cat("Valor-p predictivo posterior  P(max ≤", max_hijos_emp, ") =",
     round(p_valor_predictivo, 3), "\n")
 ```
 - Un valor-p predictivo de 0.434 significa que en el 43.4% de las replicas simuladas bajo el modelo, el máximo número de hijos es ≤ 4.
