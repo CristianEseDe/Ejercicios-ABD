@@ -682,7 +682,7 @@ Se obtiene una probabilidad estimada de 0.972 de que la tasa de fertilidad de mu
 
 Cuando hay dos variables aleatorias independientes, cada una con una distribución gamma diferente, la diferencia entre ellas no sigue ninguna distribución estándar conocida (no existe fórmula cerrada para su distribución, así como sí que existe por ejemplo *pnorm()* para dos distribuciones normales). Una gran ventaja del método Monte Carlo aquí es que no se necesita conocer la distribución de la diferencia ya que simplemente simulas las gammas y calculas directamente la proporción de veces donde $X > Y$.
 
-Se ha comprobado que la simulación permite obtener no solo estimaciones puntuales sino también ICs. Se puede controlar la precisión aumentando el tamaño muestral, pero puede requerir un número muy grande de simulaciones si buscas precisión extrema (p.e. en este caso la muestra necesaria ha sido de $n=222802$).
+Se ha comprobado que la simulación permite obtener no solo estimaciones puntuales sino también ICs. Se puede controlar la precisión aumentando el tamaño muestral, pero puede requerir un número muy grande de simulaciones si buscas precisión extrema (p.e. en este caso la muestra necesaria ha sido de $n=`{r} n_necesario`$).
 :::
 
 # Referencias
