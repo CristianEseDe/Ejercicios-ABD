@@ -159,7 +159,7 @@ media_teorica <- alpha / (alpha + beta)
 var_teorica
 
 # Resultados
-cat("Número de simulaciones:", n_sim, "\n")
+cat("Número de muestras:", n_sim, "\n")
 cat("Media empírica:", media_empirica, "\n")
 cat("Media teórica:", media_teorica, "\n")
 cat("Varianza empírica:", var_empirica, "\n")
