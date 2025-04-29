@@ -235,7 +235,8 @@ barplot(tabla_pred / sum(tabla_pred),
 3) **Calcular el centil empírico**
 
 4) **Calcular probabilidad de obtener un valor igual o menor:**
-- Proporción de simulaciones en las que el resultado es igual o menor que el observado (p-valor inferior)
+- Proporción de simulaciones en las que el resultado es igual o mayor que el observado
+- Proporción de simulaciones en las que el resultado es igual o menor que el observado
 
 ```{r calculo-centil+probabilidades}
 # Cuenta de aceptaciones en la muestra real
@@ -572,15 +573,38 @@ Interpretación:
 ::: {#respuesta-9 .callout-note}
 La elección del *valor-*$p$ *predictivo posterior* a usar (contraste unilateral en una determinada dirección, bilateral...) depende fundamentalmente del contexto de los datos y de la pregunta que nos hacemos.
 
-En este caso usaría un *contraste bilateral*. Como nos preguntamos si dos muestras provienen de la misma población, no es una hipótesis direccional ni nos interesa detectar una desviación en particular. Al final cualquier diferencia significativa (ya sea por exceso o por defecto) es relevante. Además de esta forma se evitan sesgos de interpretación.
-$$\text{valor-}p\text{ predictivo posterior}=min[1, 2 × min[P(T(y_rep) ≥ T(y_obs)), P(T(y_rep) ≤ T(y_o_b_s))]]$$
-Es decir, el *valor-*$p$ *predictivo posterior* equivaldría al valor mínimo obtenido entre la proporción de simulaciones bajo el modelo ajustado con la muestra 2 (y n = 22) que dieron 17 o más aceptaciones ($P(X ≥ 17)$) y la proporción de simulaciones que dieron 17 o menos aceptaciones ($P(X ≤ 17)$) multiplicado por dos, siempre y cuando el resultado no exceda a uno. Se multiplica por 2 el *valor-*$p$ *predictivo posterior unilateral* ya que en un contraste bilateral, estamos considerando desviaciones en ambas direcciones y por tanto reconocemos que la evidencia contra $h_0$ podría aparecer en cualquiera de las dos colas.
+1) **Detectamos la dirección de la anomalía:**
+- Si se cumple *media_predictiva < n_aceptaciones_obs*: El modelo subestima el número de aceptaciones, por lo que nos interesa la probabilidad de obtener valores tan altos o más altos que el observado (P(X ≥ *n_aceptaciones_obs*)). 
+- Si *media_predictiva > n_aceptaciones_obs*: El modelo sobreestima el número de aceptaciones, por lo que nos interesa la probabilidad de obtener valores tan bajos o más bajos que el observado (P(X ≤ *n_aceptaciones_obs*)).
 
-Un *valor-*$p$ *< 0.05* rechazaría la hipotesis nula de que ambas poblaciones son iguales. En este caso *valor-*$p$ *predictivo posterior unilateral* es:
+- Al elegir la dirección del contraste basada en la discrepancia observada, aumentamos la sensibilidad para detectar este tipo específico de desviación
 
-`{r} min(1, 2 * min(prob_mayor_igual, prob_menor_igual))`
+```{r valor-p-pred2-muestra1}
+# Comparar las medias/datos
+media_predictiva <- mean(resultados_binomiales_post2_n22)
+# La comparación se hace con el nº de aceptaciones: n_aceptaciones_obs
 
-Sugiere que el resultado de la muestra 1 es relativamente inusual bajo la hipótesis de que ambas muestras provienen de la misma población, pero no es extremadamente raro ya que no es menor a 0.05. Podemos decir que hay cierta discrepancia pero no una incompatibilidad clara.
+# Elegir el contraste unilateral según la dirección de la discrepancia
+if (media_predictiva < n_aceptaciones_obs) {
+  # Si el modelo predice menos aceptaciones que las observadas
+  valor_p_pred_2_muestra1 <- mean(resultados_binomiales_post2_n22 >= n_aceptaciones_obs)
+  direccion <- "mayor"
+} else {
+  # Si el modelo predice más aceptaciones que las observadas
+  valor_p_pred_2_muestra1 <- mean(resultados_binomiales_post <= n_aceptaciones_obs)
+  direccion <- "menor"
+}
+
+# Mostrar resultados
+cat("Media predictiva:", media_predictiva, "\n")
+cat("Media empírica (observada):", n_aceptaciones_obs, "\n")
+cat("El valor observado es", direccion, "que lo esperado bajo el modelo\n")
+cat("Valor-p predictivo posterior:", valor_p_pred_2_muestra1, "\n")
+```
+
+Un valor-p predictivo posterior de `{r} valor_p_pred_2_muestra1`indica que, bajo el modelo ajustado con la muestra 2, hay un `{r} 100 * valor_p_pred_2_muestra1` de posibilidades de observar un número de aceptaciones igual o mayor al observado en la muestra 1, lo que sugiere que el valor observado en la muestra 1 es inusualmente alto comparado con lo que predice el modelo ajustado con la muestra 2.
+
+En términos prácticos, esto sugiere que la muestra 1 muestra una tasa de aceptación mayor de lo que esperaríamos si proviniera de la misma población que la muestra 2. El resultado es relativamente inusual bajo la hipótesis de que ambas muestras provienen de la misma población, pero no es extremadamente raro ya que no es menor a 0.05. Podemos decir que hay cierta discrepancia pero no una incompatibilidad clara.
 :::
 
 ### Pregunta 10
@@ -596,25 +620,32 @@ Sugiere que el resultado de la muestra 1 es relativamente inusual bajo la hipót
 resultados_binomiales_post1_n113 <- rbinom(length(theta_post_samples), size = n_muestra_2, prob = theta_post_samples)
 
 # Valor empírico de la muestra 2 = n_aceptaciones_obs2
-# Calcular probabilidades:
-p_mayor2 <- mean(resultados_binomiales_post1_n113 > n_aceptaciones_obs2)  # Estrictamente mayor
-p_menor2 <- mean(resultados_binomiales_post1_n113 < n_aceptaciones_obs2)  # Estrictamente menor
-p_igual2 <- mean(resultados_binomiales_post1_n113 == n_aceptaciones_obs2) # Exactamente igual
 
-# Probabilidad de obtener un valor mayor o igual
-prob_mayor_igual2 <- p_mayor2 + p_igual2 
+# Comparar las medias
+media_predictiva2 <- mean(resultados_binomiales_post1_n113)
+# La comparación se hace con el nº de aceptaciones: n_aceptaciones_obs2
 
-# Probabilidad de obtener un valor menor o igual
-prob_menor_igual2 <- p_menor2 + p_igual2
+# Elegir el contraste unilateral según la dirección de la discrepancia
+if (media_predictiva2 < n_aceptaciones_obs2) {
+  # Si el modelo predice menos aceptaciones que las observadas
+  valor_p_pred_1_muestra2 <- mean(resultados_binomiales_post1_n113 >= n_aceptaciones_obs2)
+  direccion <- "mayor"
+} else {
+  # Si el modelo predice más aceptaciones que las observadas
+  valor_p_pred_1_muestra2 <- mean(resultados_binomiales_post1_n113 <= n_aceptaciones_obs2)
+  direccion <- "menor"
+}
 
-# Calcular el valor-p predictivo posterior
-valor_p_pred_1_muestra2 <- min(1, 2 * min(prob_mayor_igual2, prob_menor_igual2))
-cat("Valor-p predictivo posterior (muestra 2 bajo modelo muestra 1):", valor_p_pred_1_muestra2, "\n")
+# Mostrar resultados
+cat("Media predictiva:", media_predictiva2, "\n")
+cat("Media empírica (observada):", n_aceptaciones_obs2, "\n")
+cat("El valor observado es", direccion, "que lo esperado bajo el modelo\n")
+cat("Valor-p predictivo posterior:", valor_p_pred_1_muestra2, "\n")
 ```
 
-Un valor-p predictivo posterior de `{r} valor_p_pred_1_muestra2` indica que, bajo el modelo ajustado con la muestra 1, hay un `{r} 100 * valor_p_pred_1_muestra2` de probabilidad de observar un número de aceptaciones igual o mayor al observado en la muestra 2.
+Un valor-p predictivo posterior de `{r} valor_p_pred_1_muestra2` indica que, bajo el modelo ajustado con la muestra 1, hay un `{r} 100 * valor_p_pred_1_muestra2` de posibilidades de observar un número de aceptaciones igual o menor al observado en la muestra 2, lo que sugiere que nuestro modelo estaría sobreestimando el número de *si* de la población basándonos en los resultados de la muestra 2.
 
-De nuevo al ser un *valor-*$p$ *> 0.05*, aunque puede indicar cierta discrepancia (es inferior a 0.1) no es suficiente para rechazar $h_0$.
+El valor obtenido es *valor-*$p$ *< 0.05*, lo que llevaría a rechazar $h_0$, es decir, concluiríamos que la muestra 2 proviene de una población diferente a la muestra 1.
 :::
 
 # Ejercicio 2: Modelo gamma-Poisson de la "tasa de fertilidad"
@@ -831,7 +862,7 @@ cat("Probabilidad de que la mujer con titulación universitaria tenga más hijos
 ::: {#respuesta-15 .callout-note}
 *(NOTA: Para calcular probabilidades conjuntas no hay que usar proporciones fijas de la muestra; hay que incorporar la incertidumbre en todos los parámetros: probabilidad de tener título universitario y tasa de fertilidad condicionada a tener título)*
 
-1) *Modelar incertidumbre sobre la proporción de mujeres con título universitario*
+1) **Modelar incertidumbre sobre la proporción de mujeres con título universitario**
 - La proporción de mujeres con título universitario en la población es un parámetro desconocido con incertidumbre que se ha de simular.
 
 ```{r proporcion-mujeres-con-título}
@@ -858,17 +889,11 @@ prop_titulo_sim <- rbeta(n_sim, alpha_post_prop, beta_post_prop) # vector de pro
 - Luego se generará el número de hijos según la tasa de fertilidad correspondiente.
 
 ```{r simulacion-conjunta-observaciones}
-# Para cada simulación, determinamos si tiene título y generamos número de hijos
+# Para cada simulación, determinamos si tiene título y asignamos un número de hijos acorde a su grupo
 resultados_sim <- tibble(
   tiene_titulo = rbinom(n_sim, 1, prop_titulo_sim),
-  tasa_fertilidad = ifelse(tiene_titulo == 1, lambda_con, lambda_sin) # asigna valor lambda_con[i] si tiene_titulo == 1 y lambda_sin[i] si tiene_titulo == 0
+  n_hijos = ifelse(tiene_titulo == 1, y_pred_con, y_pred_sin) # asigna valor y_pred_con[i] si tiene_titulo == 1 y y_pred_sin[i] si tiene_titulo == 0
 )
-
-# Generamos el número de hijos (usualmente Poisson para conteos)
-resultados_sim <- resultados_sim %>%
-  mutate(n_hijos = rpois(n_sim, tasa_fertilidad)) # Para cada simulación i, generamos un número aleatorio de hijos según la tasa_fertilidad asignada
-
-# Creo que puedo hacer esto de otra forma utilizando las variables que ya tenía con muestras simuladas del número de hijos y_pred_sin e y_pred_con, pero no estoy seguro de cómo...
 ```
 
 4) **Cálculo de probabilidades conjuntas**
@@ -896,64 +921,44 @@ tibble(
 
 ::: {#respuesta-16 .callout-note}
 ```{r proporcion-tituladas}
-# Calcular la proporción empírica en la muestra original
-prop_empirica <- fertilidad_gss_1990 %>%
-  group_by(n_hijos) %>%
-  summarize(
-    n_con = sum(frecuencia[titulo_uni == "con"]),
-    n_total = sum(frecuencia),
-    prop_con = ifelse(n_total > 0, n_con / n_total, NA)
-  )
+# Datos empíricos: distribución del número de hijos en mujeres con título
+datos_empiricos <- fertilidad_gss_1990 |>
+  filter(titulo_uni == "con") |>
+  mutate(proporcion = frecuencia / sum(frecuencia)) |>
+  select(n_hijos, proporcion)
 
-# Calcular la proporción predictiva posterior usando las simulaciones
-df_pred <- bind_rows(
-  tibble(n_hijos = y_pred_con, grupo = "con"),
-  tibble(n_hijos = y_pred_sin, grupo = "sin")
+# Datos predictivos: distribución posterior del número de hijos en mujeres con título
+datos_predictivos <- tibble(n_hijos = y_pred_con) |>
+  count(n_hijos) |>
+  mutate(proporcion = n / sum(n)) |>
+  select(n_hijos, proporcion)
+
+# Preparar datos para gráfico
+datos_empiricos <- datos_empiricos |> mutate(tipo = "Empírica")
+datos_predictivos <- datos_predictivos |> mutate(tipo = "Predictiva")
+
+datos_plot <- bind_rows(
+  datos_empiricos,
+  datos_predictivos
 )
 
-prop_predictiva <- df_pred %>%
-  group_by(n_hijos) %>%
-  summarize(
-    n_con = sum(grupo == "con"),
-    n_total = n(),
-    prop_con = ifelse(n_total > 0, n_con / n_total, NA)
-  )
-
-# Junta los datos para ggplot
-prop_empirica <- prop_empirica %>% mutate(tipo = "Empírica")
-prop_predictiva <- prop_predictiva %>% mutate(tipo = "Predictiva")
-
-datos_plot <- bind_rows(prop_empirica, prop_predictiva)
-
 # Representación gráfica
-ggplot(datos_plot, aes(x = factor(n_hijos), y = prop_con, fill = tipo)) +
+ggplot(datos_plot, aes(x = factor(n_hijos), y = proporcion, fill = tipo)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
   labs(
-    title = "Proporción de mujeres tituladas universitarias según número de hijos",
+    title = "Distribución del número de hijos en mujeres con título universitario",
     x = "Número de hijos",
-    y = "Proporción con título universitario",
-    fill = "Tipo de proporción"
+    y = "Proporción",
+    fill = "Distribución"
   ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   scale_fill_brewer(palette = "Set2")
 ```
-*Aclaración para mí: el gráfico no muestra la distribución total de mujeres sino la proporción de mujeres con título universitario dentro de cada categoría de número de hijos.*
-
-A) **PROPORCIÓN EMPÍRICA:**
-- Muestra un claro descenso en la proporción de mujerescon título universitario a medida que aumenta el número de hijos. La proporción cae bruscamente a partir de 4 hijos, llegando a 0 a partir de 5 hijos.
-- Aproximadamente el 30-40% de las mujeres sin hijos o con un hijo tienen título universitario.
-
-B) **PROPORCIÓN PREDICTIVA:**
-- También muestra un descenso, pero con una pendiente más suave y regular. No muestra las fluctuaciones abruptas de los datos empíricos.
-- Tiene unos valores iniciales más altos que comienzan cerca del 60% para mujeres sin hijos, signifiativamente más alto del valor empírico de la muestra.
-- Y extiende la predicción hasta 10-11 hijos más allá de lo observado en la muestra.
 
 Conclusiones:
-- La proporción predictiva sobreestima considerablemente la proporción de mujeres con título universitario de cada categoría, por ejemplo, empezando cerca del 60% para mujeres sin hijos vs menos del 40% en la muestra empírica.
-- Esto ocurre sobretodo al inicio, si bien las líneas convergen o se aproximan un poco para números intermedios de 3-4 hijos.
-- No muestra las fluctuaciones abruptas de los datos empíricos, ofreciendo una tendencia más suavizada.
-- Extiende la predicción hasta 10-11 hijos, más allá de lo observado en la muestra. No se si esto es bueno o malo... En caso de que en la población real sí hubiera casos de mujeres con 10-11 hijos que no han sido capturados en la muestra tendría sentido.
-- Si no los hay, puede ser algo negativo. El modelo bayesiano sugiere una relación más fuerte entre educación universitaria y menor número de hijos de lo que muestran los datos empíricos. Puede ser una limitación del modelo gamma-Poisson para capturar la verdadera relación y que haya posibles factores no considerados que afecten tanto a la educación como a la fertilidad.
-- Se necesitaría un mayor tamaño muestral en algunos grupos para poder llegar a una buena conclusión al respecto.
+- La proporción predictiva sobreestima la proporción de mujeres con 1 hijo en aproximadamente un 7,5% y subestima las mujeres con 2 hijos sobre un 5%, lo que hace que el modelo otorgue 1 hijo a la mayor la mayor proporción de mujeres mientras que los datos muestran que son las de 2 hijos. El resto de categorías hace una predicción bastante ajustada a la muestra.
+- El modelo predictivo extiende la predicción hasta 7 hijos, más allá de lo observado en la muestra. No se si esto es bueno o malo... En caso de que en la población real sí hubiera casos de mujeres con 7 hijos que no han sido capturados en la muestra tendría sentido. Si no los hay, puede ser algo negativo.
+- Se necesitaría un mayor tamaño muestral para poder llegar a una buena conclusión al respecto.
 :::
 
 ## Comprobaciones predictivas posteriores sobre la muestra
@@ -1089,22 +1094,34 @@ Evaluar si el modelo capta bien el *valor medio de hijos en el grupo con titulac
 
 4) Calculamos la media empírica observada en la muestra real.
 
-5) El **valor-p predictivo posterior** es la proporción de simulaciones en que $\{mean}_{\rm simulada}  \le  \{mean}_{\rm empírica}$.
+5) El **valor-p predictivo posterior** es la proporción de simulaciones en que P(media simulada ≥ media empírica).
 
 ```{r valor-p-predictivo-posterior}
-# 1. Estadístico empírico
+# 2. y 3. Simular réplicas y calcular media
+mean_sim <- map_dbl(lambda_con, ~ mean(rpois(n_con, .x)))
+
+# 4. Estadístico empírico media
 mean_emp_con <- fert_estadisticos %>%
   filter(titulo_uni == "con") %>%
   summarize(mean_emp = y / n) %>%
   pull(mean_emp)
 
-# 2. Simular réplicas y calcular media
-mean_sim <- map_dbl(lambda_con, ~ mean(rpois(n_con, .x)))
+# 5. Elegir el contraste unilateral según la dirección de la discrepancia
+if (mean(mean_sim) < mean_emp_con) {
+  # Si el modelo predice menos aceptaciones que las observadas
+  p_val <- mean(mean_sim >= mean_emp_con)
+  direccion <- "mayor"
+} else {
+  # Si el modelo predice más aceptaciones que las observadas
+  p_val <- mean(mean_sim <= mean_emp_con)
+  direccion <- "menor"
+}
 
-# 3. Valor-p predictivo posterior (unilateral ≥)
-p_val <- mean(mean_sim >= mean_emp_con)
-
-cat("Valor-p predictivo posterior (media con título):", round(p_val, 3), "\n")
+# Mostrar resultados
+cat("Media predictiva:", mean(mean_sim), "\n")
+cat("Media empírica (observada):", mean_emp_con, "\n")
+cat("El valor observado es", direccion, "que lo esperado bajo el modelo\n")
+cat("Valor-p predictivo posterior:", p_val, "\n")
 ```
 
 - Un valor-p predictivo de 0.517 Significa que en el 51.7 % de las réplicas la media simulada es igual o superior a la empírica y indicaría un muy buen ajuste para la media de hijos del grupo de mujeres con título universitario ya que prácticamente es de 0.5.
