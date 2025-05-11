@@ -751,6 +751,25 @@ Asegúrate de familiarizarte con el ejemplo, ya que lo utilizaremos en este ejer
 *(NOTA: No olvides añadir el paquete `{mcmc}` al entorno.)*
 
 ::: {#respuesta-12 .callout-note}
+```{r}
+# Cargar paquetes
+library(rstan)
+
+# Cargar el dataset logit
+data(logit)
+
+# Dimensiones de los datos
+dim(logit$x)
+length(logit$y)
+
+# Resumen de la variable respuesta
+table(logit$y)
+mean(logit$y)
+
+# Resumen de las variables predictoras
+summary(logit$x)
+```
+
 :::
 
 ### Pregunta 13
