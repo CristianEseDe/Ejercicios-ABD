@@ -1,0 +1,534 @@
+---
+title: "Tema 8: PEC"
+format:
+  html:
+    code-copy:       true
+    code-tools:      true
+    df-print:        paged
+    embed-resources: true
+    theme:           ../www/extra-styles.scss
+    toc:             true
+    toc-location:    left
+callout-appearance: minimal
+---
+
+# Introducción
+
+Esta PEC consistirá en la realización de un ejercicio de aplicación práctica de un modelo Bayesiano.
+
+```{r setup}
+#| message: false
+
+# Paquetes:
+library(tidyverse)
+library(RColorBrewer)
+library(haven)
+library(here)
+library(corrplot)
+library(GGally)
+library(ggridges)
+library(scales)
+library(rstan)
+library(bayesplot)
+
+# Configuración de la salida gráfica:
+
+PALETA <- brewer.pal(8, "Set2") # Colores por defecto
+color_defecto <- PALETA[1]      # Color por defecto
+options(ggplot2.discrete.colour = PALETA)
+
+theme_set(theme_bw()) # Tema "neutro" para la representación gráfica
+
+# Redondea los números reales "inline":
+options(digits = 3L)                
+options(knitr.digits.signif = FALSE)
+
+# Inicializa la semilla aleatoria:
+set.seed(20250408)
+```
+
+Inicializamos el entorno como es habitual.
+Al igual que en los demás ejercicios, **inicializamos la semilla aleatoria** para asegurar la **reproducibilidad**.
+
+# Presentación y Exploración de Datos:
+
+Para la presente PEC se utilizarán los [datos](https://figshare.com/articles/dataset/The_effects_of_stress_anxiety_and_depression_on_rumination_sleep_and_fatigue_A_nonclinical_sample/7039034?file=12936419) recopilados en el estudio de [Thorsteinsson & Brown](https://pubmed.ncbi.nlm.nih.gov/30925506/). En él, se exploraban las relaciones de mediación indirectas entre el estrés, el sufrimiento emocional, y la calidad del sueño como predictores de la fatiga severa y el potencial rol que juega la rumiación en estas relaciones. 
+
+## Cargar datos
+
+Para garantizar la reproducibilidad del análisis, se implementa una solución que:
+
+1 - Intenta cargar los datos localmente si existen.
+2 - Si no existen, los descarga automáticamente de la fuente original.
+3 - Guarda una versión local para futuras ejecuciones.
+
+```{r}
+#| message: FALSE
+#| warning: FALSE
+
+# URL del conjunto de datos
+data_url <- "https://springernature.figshare.com/ndownloader/files/12936419"
+
+# Ruta local para guardar los datos
+local_data_path <- here("data", "fatigue_study.sav")
+
+# Crear directorio de datos si no existe
+if (!dir.exists(here("data"))) {
+  dir.create(here("data"))
+}
+
+# Función para cargar los datos
+load_study_data <- function() {
+  # Verificar si los datos ya están descargados localmente
+  if (!file.exists(local_data_path)) {
+    message("Descargando datos de la fuente original...")
+    # Descargar el archivo
+    download.file(url = data_url, 
+                  destfile = local_data_path,
+                  mode = "wb")
+    message("Datos descargados exitosamente.")
+  }
+  
+  # Leer los datos
+  data <- haven::read_sav(local_data_path)
+  return(data)
+}
+
+# Cargar los datos
+datos <- load_study_data()
+
+# Mostrar las primeras filas de los datos
+head(datos)
+
+```
+
+El dataset contiene `{r} nrow(datos)` observaciones de `{r} ncol(datos)` variables:
+
+1. **Variables Demográficas y de Identificación**  
+- *AGE:* Edad del participante  
+- *SEX:* Sexo (1 = Hombre, 2 = Mujer)  
+- *REL:* Estado civil  
+- *JOB:* Situación laboral actual  
+  
+2. **Variables de Sueño (PSQI - Ítems específicos)**  
+- *PSQI1:* Hora de acostarse  
+- *PSQI2:* Tiempo que tarda en dormirse (minutos)  
+- *PSQI3:* Hora de levantarse  
+- *PSQI4:* Horas reales de sueño  
+- *PSQI5a-j:* Problemas específicos de sueño (ej. despertarse por la noche, problemas para respirar, etc.)  
+- *PSQI8:* Problemas para mantenerse despierto  
+- *PSQI9:* Dificultad para mantener el entusiasmo  
+- *PSQI10:* Presencia de compañero de cama/habitación  
+  
+3. **Variables de Rumiación (RTS - Ítems específicos)**  
+- *RTS1-RTS20:* Ítems individuales del cuestionario de Rumiación  
+  
+4. **Variables de Fatiga (FSS - Ítems específicos)**  
+- *FSS1-FSS9:* Ítems individuales de la Escala de Severidad de Fatiga  
+  
+5. **Variables de Estrés (PSS - Ítems específicos)**  
+- *PSS1-PSS10:* Ítems individuales de la Escala de Estrés Percibido  
+  
+6. **Variables de Ansiedad y Depresión (DASS - Ítems específicos)**  
+- *DASS1-DASS21:* Ítems individuales del DASS-21  
+
+7. **Variables Calculadas y Derivadas**  
+- *PSSTOT:* Puntuación total de estrés percibido  
+- *RUMTOT:* Puntuación total de rumiación  
+- *ANXTOT:* Puntuación total de ansiedad  
+- *DEPTOT:* Puntuación total de depresión  
+- *STRESSTOT:* Puntuación total de estrés  
+- *FATIGUE:* Puntuación de fatiga  
+- *PSQILATEN, PSQIDURAT, PSQIDISTB, PSQIDAYDYS, PSQITOT:* Componentes del PSQI  
+- *Factor_poor_sleep:* Factor de calidad de sueño pobre (PCA)  
+- *MAH_1 a MAH_17:* Distancias de Mahalanobis (detección de valores atípicos)  
+- *COO_1 a COO_5:* Distancias de Cook (influencia en modelos)  
+- *FAC1_1, FAC1_2, FAC1_3:* Puntuaciones factoriales  
+  
+8. **Variables de Análisis**  
+- *mod_unc, idv_unc, depvar, indvar, modvar:* Variables para análisis de mediación/modera  
+- *pss_c, rum_C, PSQI_C, ANX_C, DEP_C, psscxrumc, anxcxrumc, depcxrumc:* Variables centradas y términos de interacció  
+- *idv, dv, mod, miss, student:* Variables para análisis estadísticos  
+  
+9. **Variables de Control de Calidad**
+- *filter_$:* Filtro para participantes con fatiga  
+- *rel1-rel4, job1-job7:* Variables dummy para estado civil y empleo  
+
+## Primera Exploración de algunas Variables de Interés
+
+Se realiza una primera exploración de la distribución y correlación de algunas **variables de interés** para plantear un modelo predictivo.
+
+Se exploran las **variables contínuas**.
+
+```{r}
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 8
+
+# Crear un subconjunto con las variables disponibles
+datos_expl <- datos |> 
+  select(c("AGE", "PSQITOT", "PSSTOT", "RUMTOT", "ANXTOT", 
+          "DEPTOT", "STRESSTOT", "FATIGUE", "Factor_poor_sleep")) |>
+  # Eliminar filas con valores NA
+  na.omit()
+
+# Descriptivos de las variables
+summary(datos_expl)
+
+# Calcular matriz de correlación
+matriz_cor <- cor(datos_expl, use = "pairwise.complete.obs")
+
+# Visualizar matriz de correlación con corrplot
+corrplot(matriz_cor, 
+         method = "color", 
+         type = "upper", 
+         order = "hclust", 
+         addCoef.col = "black", 
+         tl.col = "black", 
+         tl.srt = 45, 
+         diag = FALSE,
+         number.cex = 0.7,
+         col = PALETA,
+         title = "Matriz de correlaciones entre variables candidatas",
+         mar = c(0, 0, 2, 0))
+
+# Crear un gráfico de dispersión para todas las combinaciones de variables con GGally
+ggpairs(datos_expl, 
+        columns = 1:min(9, ncol(datos_expl)),
+        upper = list(continuous = "cor", combo = "box_no_facet"),
+        lower = list(continuous = "smooth", combo = "dot_no_facet"),
+        diag = list(continuous = "densityDiag"),
+        title = "Relaciones entre variables candidatas") 
+```
+
+Y la relación de las **variables categóricas sociodemográficas** con estas.
+
+```{r}
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 8
+# Primero, preparamos los datos para el análisis
+datos_expl <- datos |>
+  # Convertimos las variables categóricas a factores con etiquetas adecuadas
+  mutate(
+    SEX = factor(SEX, levels = 0:1, labels = c("Hombre", "Mujer")),
+    REL = factor(REL, levels = 1:5, 
+                labels = c("Nunca casado", "Casado/De Facto", "Viudo/a", 
+                           "Divorciado/Separado", "Otro")),
+    JOB = factor(JOB, levels = 1:8,
+                labels = c("Empleado tiempo completo", "Empleado tiempo parcial", 
+                           "Desempleado", "Jubilado", "Estudiante", 
+                           "Voluntario", "Incapacidad para trabajar", "Ama/o de casa"))
+  )
+
+# Frecuencias para variables categóricas
+frecuencias_categoricas <- datos_expl |>
+  select(SEX, REL, JOB) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "categoria") |>
+  group_by(variable, categoria) |>
+  summarise(frecuencia = n(), .groups = "drop") |>
+  group_by(variable) |>
+  mutate(
+    porcentaje = frecuencia / sum(frecuencia) * 100,
+    etiqueta = paste0(round(porcentaje, 1), "%")
+  )
+
+# Gráficos de barras para variables categóricas
+graficos_categoricos <- frecuencias_categoricas |>
+  ggplot(aes(x = categoria, y = frecuencia, fill = categoria)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = etiqueta), vjust = -0.5, size = 3) +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Distribución de variables categóricas",
+       x = "", y = "Frecuencia")
+
+# RELACIONES ENTRE VARIABLES CONTINUAS Y CATEGÓRICAS
+vars_continuas <- c("PSQITOT", "PSSTOT", "RUMTOT", "ANXTOT", 
+                   "DEPTOT", "STRESSTOT", "FATIGUE", "Factor_poor_sleep")
+
+# Gráficos de densidad por sexo
+densidad_por_sexo <- datos_expl |>
+  select(SEX, all_of(vars_continuas)) |>
+  pivot_longer(-SEX, names_to = "variable", values_to = "valor") |>
+  ggplot(aes(x = valor, y = SEX, fill = SEX)) +
+  geom_density_ridges(alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(title = "Distribución de variables continuas por sexo",
+       x = "Valor", y = "")
+
+# Gráficos de densidad por estado civil
+densidad_por_rel <- datos_expl |>
+  select(REL, all_of(vars_continuas)) |>
+  pivot_longer(-REL, names_to = "variable", values_to = "valor") |>
+  ggplot(aes(x = valor, y = REL, fill = REL)) +
+  geom_density_ridges(alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(title = "Distribución de variables continuas por estado civil",
+       x = "Valor", y = "")
+
+# Gráficos de densidad por estado ocupación
+densidad_por_job <- datos_expl |>
+  select(JOB, all_of(vars_continuas)) |>
+  pivot_longer(-JOB, names_to = "variable", values_to = "valor") |>
+  ggplot(aes(x = valor, y = JOB, fill = JOB)) +
+  geom_density_ridges(alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(title = "Distribución de variables continuas por estado ocupación",
+       x = "Valor", y = "")
+
+# Visualizar gráficos
+graficos_categoricos
+densidad_por_sexo
+densidad_por_rel
+densidad_por_job
+```
+
+# Elección del modelo y preprocesamiento
+
+Me decanto por modelar el factor de calidad del sueño dicotomizando la puntuación total del Índice de Calidad del Sueño de Pittsburgh (*PSQITOT* -> *PSQIDICOT*) utilizando puntuaciones >5 como indicadores de mala calidad ([Buyse et al](https://pubmed.ncbi.nlm.nih.gov/2748771/)). 
+
+Los problemas del sueño están estrechamente relacionados con diversas variables psicológicas y de salud. Me decanto por incluir en el modelo como variables predictoras las escalas de ansiedad y depresión del Depression, Anxiety, and Stress Scale (*ANXTOT* y *DEPTOT*), y la Fatigue Severity Scale (*FATIGUE*), controlando el estado civil (*REL*).
+
+```{r}
+# Preparación de datos para el modelo logístico con variables tipificadas
+datos_modelo <- datos_expl |>
+  # Dicotomizar PSQITOT: >5 indica mala calidad de sueño
+  mutate(
+    PSQIDICOT = factor(
+      ifelse(PSQITOT > 5, 1, 0),
+      levels = c(0, 1),
+      labels = c("Buena calidad", "Mala calidad")
+    ),
+    # Tipificar variables continuas (restar media y dividir por desviación estándar)
+    ANXTOT = scale(ANXTOT) |> as.vector(),
+    DEPTOT = scale(DEPTOT) |> as.vector(),
+    FATIGUE = scale(FATIGUE) |> as.vector()
+  ) |>
+  # Seleccionar variables predictoras interesantes
+  select(
+    PSQIDICOT,    # Variable respuesta
+    ANXTOT,     # Síntomas de ansiedad (tipificada)
+    DEPTOT,     # Síntomas depresivos (tipificada)
+    FATIGUE,    # Fatiga (tipificada)
+    REL           # Estado Civil (se mantiene como factor)
+  )
+```
+
+# Regresión Logística Modelo Frecuentista
+
+```{r}
+# Ajuste del modelo logístico
+modelo_frec <- glm(
+  PSQIDICOT ~ ANXTOT + DEPTOT + FATIGUE + REL,
+  data = datos_modelo,
+  family = binomial(),
+  x = TRUE
+)
+
+summary(modelo_frec) # Resumen del modelo ajustado
+```
+
+El modelo de regresión logística muestra que las variables `{r} modelo_frec$ANXTOT`, `{r} modelo_frec$DEPTOT` y sobretodo `{r} modelo_frec$FATIGUE` pueden ser predictores significativos de la variable `{r} modelo_frec$PSQIDICOT`. 
+
+# Regresión Logística Modelo Bayesiano con RStan
+
+Generamos el modelo con Stan.
+
+```{r}
+# Preparación de datos para el modelo bayesiano
+# Extraemos la matriz de diseño y la variable respuesta
+X <- model.matrix(PSQIDICOT ~ ANXTOT + DEPTOT + FATIGUE + REL, data = datos_modelo)
+y <- as.integer(datos_modelo$PSQIDICOT) - 1  # Convertir a 0/1
+
+# Datos de entrada para Stan
+datos_stan <- list(
+  N = nrow(X),           # Número de observaciones
+  K = ncol(X),           # Número de predictores (incluyendo intercepto)
+  x = X,                 # Matriz de diseño
+  y = y                  # Variable respuesta (0/1)
+)
+
+# Configuración de Stan para mejorar la eficiencia:
+options(mc.cores = parallel::detectCores()) # Computación en paralelo
+rstan_options(auto_write = TRUE)            # Escribe el modelo compilado
+
+# Ajustar el modelo bayesiano
+fit_logit_stan <- stan(
+  file   = "../src/GLMlogistica.stan",
+  iter   = 2000,                     # Número de iteraciones
+  warmup = 1000,                     # Periodo de calentamiento
+  chains = 4,                        # Número de cadenas
+  data   = datos_stan                # Datos preparados
+)
+
+# Examinar resultados
+print(fit_logit_stan, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975))
+```
+
+## Interpretación
+
+```{r}
+plot(fit_logit_stan, pars = c("alpha", "beta"))
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+mcmc_trace(fit_logit_stan, pars = c("alpha", "beta[1]", "beta[2]", "beta[3]", "beta[4]", "beta[5]", "beta[6]", "beta[7]", "beta[8]")) # Trazar cadenas
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+mcmc_areas(
+  fit_logit_stan, 
+  regex_pars = "^(alpha|beta\\[1\\]|beta\\[2\\]|beta\\[3\\]|beta\\[4\\])$",
+  prob = 0.95,
+  prob_outer = 0.99
+)
+mcmc_areas(
+  fit_logit_stan, 
+  regex_pars = "^(beta\\[5\\]|beta\\[6\\]|beta\\[7\\]|beta\\[8\\])$",
+  prob = 0.95,
+  prob_outer = 0.99
+)
+```
+
+# Regresión Logística Modelo Bayesiano según Rankin
+
+## Función para calcular la log-similitud del Modelo Logístico
+
+```{r}
+# Función para calcular la log-verosimilitud del modelo logístico
+logitll <- function(beta, y, X) {
+  if (!is.matrix(beta)) beta <- as.matrix(t(beta))
+  n <- dim(beta)[1]
+  pll <- rep(0, n)
+  
+  for (i in 1:n) {
+    lF1 <- plogis(X %*% beta[i,], log = TRUE)
+    lF2 <- plogis(-X %*% beta[i,], log = TRUE)
+    pll[i] <- sum(y * lF1 + (1-y) * lF2)
+  }
+  
+  return(pll)
+}
+```
+
+## Implementación del algoritmo Metropolis-Hastings con Prior Plano
+
+```{r}
+# Función para generar muestras de una distribución normal multivariante
+rmvn <- function(n, mu, sigma) {
+  p <- length(mu)
+  res <- matrix(rnorm(n*p), nrow = n, ncol = p)
+  res <- t(t(res %*% chol(sigma)) + mu)
+  return(res)
+}
+
+# Algoritmo Metropolis-Hastings para el modelo logístico con prior plano
+hmflatlogit <- function(niter, y, X, scale) {
+  p <- dim(X)[2]
+  
+  # Inicializar con la estimación MLE
+  mod <- summary(glm(y ~ -1 + X, family = binomial(link = "logit")))
+  beta <- matrix(0, niter, p)
+  beta[1,] <- as.vector(mod$coeff[,1])
+  
+  # Matriz de covarianza para la propuesta
+  Sigma2 <- as.matrix(mod$cov.unscaled)
+  
+  # Algoritmo Metropolis-Hastings
+  for (i in 2:niter) {
+    # Generar propuesta
+    tildebeta <- rmvn(1, beta[i-1,], scale * Sigma2)
+    
+    # Calcular ratio de log-verosimilitud
+    llr <- logitll(tildebeta, y, X) - logitll(beta[i-1,], y, X)
+    
+    # Paso de aceptación/rechazo
+    if (runif(1) <= exp(llr)) {
+      beta[i,] <- tildebeta
+    } else {
+      beta[i,] <- beta[i-1,]
+    }
+  }
+  
+  return(beta)
+}
+```
+
+## Aplicación al MLG sobre Calidad de Sueño
+
+```{r}
+# Recuerdo que ya existe la matriz de datos 'X' y la variable respuesta 'y' para el modelo con Stan
+
+# Ejecutar el algoritmo Metropolis-Hastings
+niter <- 10000
+scale <- 1.0  # Factor de escala para la propuesta
+beta_samples <- hmflatlogit(niter, y, X, scale)
+
+# Descartar las primeras iteraciones (burn-in)
+burnin <- 1000
+beta_posterior <- beta_samples[(burnin+1):niter,]
+
+# Resumen de la distribución posterior
+beta_means <- colMeans(beta_posterior)
+beta_sd <- apply(beta_posterior, 2, sd)
+beta_quantiles <- apply(beta_posterior, 2, quantile, probs = c(0.025, 0.5, 0.975))
+
+# Crear tabla de resultados
+resultados <- tibble(
+  Parametro = colnames(X),
+  Media = beta_means,
+  DesvEst = beta_sd,
+  Q2.5 = beta_quantiles[1,],
+  Mediana = beta_quantiles[2,],
+  Q97.5 = beta_quantiles[3,]
+)
+
+# Convertir a odds ratios
+resultados_OR <- resultados |>
+  mutate(
+    OR = exp(Media),
+    OR_Q2.5 = exp(Q2.5),
+    OR_Q97.5 = exp(Q97.5)
+  )
+
+# Mostrar resultados
+print(resultados)
+print(resultados_OR)
+```
+
+## Visualización de Resultados
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+# Gráficos de traza para evaluar convergencia
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
+  plot(beta_samples[,i], type = "l", 
+       main = paste("Traza para", colnames(X)[i]),
+       xlab = "Iteración", ylab = "Valor")
+}
+
+# Histogramas de las distribuciones posteriores
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
+  hist(beta_posterior[,i], breaks = 30, 
+       main = paste("Posterior de", colnames(X)[i]),
+       xlab = "Valor", freq = FALSE)
+  abline(v = beta_means[i], col = PALETA[1], lwd = 2)
+  abline(v = beta_quantiles[c(1,3),i], col = PALETA[2], lty = 2, lwd = 2)
+}
+
+# Autocorrelación para evaluar la eficiencia del muestreo
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
+  acf(beta_posterior[,i], 
+      main = paste("Autocorrelación para", colnames(X)[i]))
+}
+```
