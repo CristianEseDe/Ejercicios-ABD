@@ -508,16 +508,16 @@ print(resultados_OR)
 #| fig.width: 10
 #| fig.height: 8
 # Gráficos de traza para evaluar convergencia
-par(mfrow = c(3, 2))
-for (i in 1:min(6, ncol(X))) {
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
   plot(beta_samples[,i], type = "l", 
        main = paste("Traza para", colnames(X)[i]),
        xlab = "Iteración", ylab = "Valor")
 }
 
 # Histogramas de las distribuciones posteriores
-par(mfrow = c(3, 2))
-for (i in 1:min(6, ncol(X))) {
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
   hist(beta_posterior[,i], breaks = 30, 
        main = paste("Posterior de", colnames(X)[i]),
        xlab = "Valor", freq = FALSE)
@@ -526,8 +526,8 @@ for (i in 1:min(6, ncol(X))) {
 }
 
 # Autocorrelación para evaluar la eficiencia del muestreo
-par(mfrow = c(3, 2))
-for (i in 1:min(6, ncol(X))) {
+par(mfrow = c(4, 2))
+for (i in 1:min(8, ncol(X))) {
   acf(beta_posterior[,i], 
       main = paste("Autocorrelación para", colnames(X)[i]))
 }
