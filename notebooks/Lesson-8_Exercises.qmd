@@ -50,11 +50,25 @@ set.seed(20250408)
 Inicializamos el entorno como es habitual.
 Al igual que en los demás ejercicios, **inicializamos la semilla aleatoria** para asegurar la **reproducibilidad**.
 
-# Presentación y Exploración de Datos:
 
-Para la presente PEC se utilizarán los [datos](https://figshare.com/articles/dataset/The_effects_of_stress_anxiety_and_depression_on_rumination_sleep_and_fatigue_A_nonclinical_sample/7039034?file=12936419) recopilados en el estudio de [Thorsteinsson & Brown](https://pubmed.ncbi.nlm.nih.gov/30925506/). En él, se exploraban las relaciones de mediación indirectas entre el estrés, el sufrimiento emocional, y la calidad del sueño como predictores de la fatiga severa y el potencial rol que juega la rumiación en estas relaciones. 
+# 1. Presentación:
 
-## Cargar datos
+Para la presente PEC se utilizarán los [datos](https://figshare.com/articles/dataset/The_effects_of_stress_anxiety_and_depression_on_rumination_sleep_and_fatigue_A_nonclinical_sample/7039034?file=12936419) recopilados en el estudio de [Thorsteinsson & Brown](https://pubmed.ncbi.nlm.nih.gov/30925506/). En él, se exploraban las relaciones de mediación indirectas entre el estrés, el sufrimiento emocional, y la calidad del sueño como predictores de la fatiga severa y el potencial rol que juega la rumiación en estas relaciones.
+
+En este trabajo, sin embargo, utilizo sus datos para centrarme en modelar los factores que predicen la calidad del sueño, utilizando un enfoque bayesiano para la regresión logística. Los problemas de sueño constituyen una preocupación creciente en la sociedad actual, con importantes implicaciones para la salud física y mental. Específicamente, analizo cómo la ansiedad, la depresión y la fatiga, controlando por el estado civil, pueden predecir la probabilidad de experimentar una mala calidad de sueño.
+
+La aproximación bayesiana nos permitirá:
+1. Incorporar conocimiento previo sobre las relaciones entre estas variables
+2. Obtener distribuciones posteriores completas para los parámetros
+3. Realizar inferencias probabilísticas más matizadas que con métodos frecuentistas
+4. Evaluar la incertidumbre en nuestras estimaciones de forma natural
+
+Este análisis no solo tiene relevancia teórica para comprender los mecanismos psicológicos relacionados con el sueño, sino también aplicaciones prácticas para el desarrollo de intervenciones clínicas más efectivas.
+
+
+# 2. Exploración y Preparación de Datos
+
+## 2.1 Cargar Datos
 
 Para garantizar la reproducibilidad del análisis, se implementa una solución que:
 
@@ -154,7 +168,7 @@ El dataset contiene `{r} nrow(datos)` observaciones de `{r} ncol(datos)` variabl
 - *filter_$:* Filtro para participantes con fatiga  
 - *rel1-rel4, job1-job7:* Variables dummy para estado civil y empleo  
 
-## Primera Exploración de algunas Variables de Interés
+## 2.2 Primera Exploración de algunas Variables de Interés
 
 Se realiza una primera exploración de la distribución y correlación de algunas **variables de interés** para plantear un modelo predictivo.
 
@@ -285,7 +299,7 @@ densidad_por_rel
 densidad_por_job
 ```
 
-# Elección del modelo y preprocesamiento
+## 2.3 Selección de Variables y Preprocesamiento
 
 Me decanto por modelar el factor de calidad del sueño dicotomizando la puntuación total del Índice de Calidad del Sueño de Pittsburgh (*PSQITOT* -> *PSQIDICOT*) utilizando puntuaciones >5 como indicadores de mala calidad ([Buyse et al](https://pubmed.ncbi.nlm.nih.gov/2748771/)). 
 
@@ -316,7 +330,53 @@ datos_modelo <- datos_expl |>
   )
 ```
 
-# Regresión Logística Modelo Frecuentista
+
+# 3. Metodología
+
+## 3.1 Modelo de regresión logística bayesiana
+
+Para modelar la probabilidad de mala calidad de sueño (*PSQIDICOT*), utilizamos un modelo logístico bayesiano donde:
+
+$$P(Y_i = 1 | X_i, \beta) = \frac{1}{1 + e^{-X_i\beta}}$$
+
+Donde:
+- $Y_i$ es la variable respuesta binaria (0 = buena calidad, 1 = mala calidad)
+- $X_i$ es el vector de predictores para la observación $i$
+- $\beta$ es el vector de parámetros del modelo
+
+Se implementará un modelo frecuentista y dos modelos bayesianos para comparaciones y contraste de hipótesis. 
+
+## 3.2 Selección de distribuciones previas
+
+Implementamos dos enfoques bayesianos con diferentes distribuciones previas:
+
+### 3.2.1 Modelo Stan con priors débilmente informativos
+
+En el modelo implementado con Stan, utilizamos priors débilmente informativos:
+
+$$\alpha \sim Normal(0, 2)$$
+$$\beta_j \sim Normal(0, 2)$$
+
+Estos priors son lo suficientemente amplios para permitir que los datos dominen la inferencia, pero proporcionan cierta regularización para evitar estimaciones extremas. La elección de $\sigma = 2$ es adecuada para parámetros en escala logit cuando las variables predictoras están estandarizadas.
+
+### 3.2.2 Modelo con algoritmo Metropolis-Hastings y prior plano
+
+En el segundo enfoque, implementamos un algoritmo Metropolis-Hastings con un prior plano (no informativo), donde:
+
+$$p(\beta) \propto 1$$
+
+Este prior asigna la misma densidad de probabilidad a todos los valores posibles de $\beta$, permitiendo que la verosimilitud determine completamente la distribución posterior.
+
+## 3.3 Métodos de estimación
+
+Para el primer modelo, utilizamos el muestreador MCMC de Stan (No-U-Turn Sampler), ejecutando 4 cadenas con 2000 iteraciones cada una (1000 de calentamiento).
+
+Para el segundo modelo, implementamos un algoritmo Metropolis-Hastings personalizado, utilizando como distribución propuesta una normal multivariante centrada en el valor actual y con matriz de covarianza proporcional a la inversa de la matriz de información de Fisher del estimador MLE.
+
+
+# 4. Modelos
+
+## 4.1 Regresión Logística Modelo Frecuentista
 
 ```{r}
 # Ajuste del modelo logístico
@@ -332,7 +392,9 @@ summary(modelo_frec) # Resumen del modelo ajustado
 
 El modelo de regresión logística muestra que las variables `{r} modelo_frec$ANXTOT`, `{r} modelo_frec$DEPTOT` y sobretodo `{r} modelo_frec$FATIGUE` pueden ser predictores significativos de la variable `{r} modelo_frec$PSQIDICOT`. 
 
-# Regresión Logística Modelo Bayesiano con RStan
+## 4.2 Regresión Logística Modelo Bayesiano con RStan
+
+### 4.2.1 Aplicación al MLG sobre Calidad de Sueño
 
 Generamos el modelo con Stan.
 
@@ -367,7 +429,7 @@ fit_logit_stan <- stan(
 print(fit_logit_stan, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975))
 ```
 
-## Interpretación
+### 4.2.2 Visualización de Resultados
 
 ```{r}
 plot(fit_logit_stan, pars = c("alpha", "beta"))
@@ -396,9 +458,9 @@ mcmc_areas(
 )
 ```
 
-# Regresión Logística Modelo Bayesiano según Rankin
+## 4.3 Regresión Logística Modelo Bayesiano según Rankin
 
-## Función para calcular la log-similitud del Modelo Logístico
+### 4.3.1 Función para calcular la log-similitud del Modelo Logístico
 
 ```{r}
 # Función para calcular la log-verosimilitud del modelo logístico
@@ -417,7 +479,7 @@ logitll <- function(beta, y, X) {
 }
 ```
 
-## Implementación del algoritmo Metropolis-Hastings con Prior Plano
+### 4.3.2 Implementación del algoritmo Metropolis-Hastings con Prior Plano
 
 ```{r}
 # Función para generar muestras de una distribución normal multivariante
@@ -460,7 +522,7 @@ hmflatlogit <- function(niter, y, X, scale) {
 }
 ```
 
-## Aplicación al MLG sobre Calidad de Sueño
+### 4.3.3 Aplicación al MLG sobre Calidad de Sueño
 
 ```{r}
 # Recuerdo que ya existe la matriz de datos 'X' y la variable respuesta 'y' para el modelo con Stan
@@ -502,7 +564,7 @@ print(resultados)
 print(resultados_OR)
 ```
 
-## Visualización de Resultados
+### 4.3.4 Visualización de Resultados
 
 ```{r}
 #| fig.width: 10
@@ -532,3 +594,367 @@ for (i in 1:min(8, ncol(X))) {
       main = paste("Autocorrelación para", colnames(X)[i]))
 }
 ```
+
+
+# 5. Interpretación de Resultados
+
+## 5.1 Evaluación de la aproximación
+
+### 5.1.1 Convergencia del modelo Stan
+
+Los gráficos de traza muestran una buena mezcla de las cadenas MCMC para todos los parámetros, sin patrones evidentes de no estacionariedad. Los valores de R-hat cercanos a 1.0 confirman la convergencia de las cadenas.
+
+### 5.1.2 Convergencia del algoritmo Metropolis-Hastings
+
+Los gráficos de traza del algoritmo Metropolis-Hastings muestran un comportamiento adecuado, aunque con mayor autocorrelación que el modelo Stan, lo que indica una menor eficiencia en el muestreo. Sin embargo, los histogramas posteriores muestran distribuciones suaves y bien definidas, sugiriendo una aproximación adecuada.
+
+## 5.2 Estimadores posteriores
+
+### 5.2.1 Coeficientes y odds ratios
+
+Los resultados de ambos modelos bayesianos muestran que la fatiga (*FATIGUE*) es el predictor más importante de la mala calidad del sueño, por ejemplo, con un odds ratio posterior medio de `{r} resultados_OR$OR[resultados_OR$Parametro == "FATIGUE"]` (IC 95%: [`{r} resultados_OR$OR_Q2.5[resultados_OR$Parametro == "FATIGUE"]`, `{r} resultados_OR$OR_Q97.5[resultados_OR$Parametro == "FATIGUE"]`]) para el modelo MH. Esto indica que por cada aumento de una desviación estándar en la fatiga, las probabilidades de experimentar mala calidad de sueño aumentan aproximadamente un `{r} (resultados_OR$OR[resultados_OR$Parametro == "FATIGUE"] - 1) * 100`%.
+
+La depresión (*DEPTOT*) también muestra un efecto positivo significativo, mientras que la ansiedad (*ANXTOT*) muestra un efecto positivo pero con intérvalos de credibilidad que incluyen el cero, sugiriendo mayor incertidumbre sobre su efecto.
+
+Respecto al estado civil (*REL*), ninguna categoría muestra efectos claramente diferenciados del grupo de referencia (Nunca casado), aunque se observa una tendencia hacia mayor probabilidad de mala calidad de sueño en los grupos de divorciados/separados u otro.
+
+### 5.2.2 Comparación entre modelos
+
+La comparación entre el modelo frecuentista, el modelo Stan y el modelo Metropolis-Hastings muestra estimaciones consistentes para los principales predictores, lo que refuerza la robustez de nuestros hallazgos. Las pequeñas diferencias observadas se deben principalmente a las distintas distribuciones previas utilizadas.
+
+# 6. Distribución predictiva posterior y aplicaciones
+
+## 6.1 Comprobación Predictiva Posterior (Posterior Predictive Check)
+
+Verifica si el Modelo con Stan puede reproducir características importantes de los datos.
+
+```{r}
+# Extraer predicciones
+y_pred_samples <- extract(fit_logit_stan)$y_pred
+
+# Calcular proporción de 1s en cada muestra posterior
+prop_1_pred <- colMeans(y_pred_samples)
+
+# Comparar con proporción observada
+prop_1_obs <- mean(y)
+
+# Visualizar
+hist(prop_1_pred, main="Distribución posterior de la proporción de mala calidad de sueño")
+abline(v=prop_1_obs, col="red", lwd=2)
+```
+
+## 6.2 Distribución Predictiva Posterior para nuevos casos
+
+Para evaluar la capacidad predictiva del modelo, calculamos la distribución predictiva posterior para nuevas observaciones. Específicamente, estimamos la probabilidad de mala calidad de sueño para diferentes perfiles de individuos:
+
+1. Perfil de bajo riesgo: Bajos niveles de ansiedad, depresión y fatiga
+2. Perfil de alto riesgo: Altos niveles de ansiedad, depresión y fatiga
+3. Perfil solo fatiga: Altos niveles de fatiga
+3. Perfil sin fatiga: Bajos niveles de fatiga
+
+```{r}
+# Distribución predictiva posterior para diferentes perfiles
+# Crear perfiles hipotéticos
+perfil_bajo_riesgo <- c(1, -1, -1, -1, 0, 0, 0, 0)  # Intercepto y valores bajos de predictores
+perfil_alto_riesgo <- c(1, 1, 1, 1, 0, 0, 0, 0)     # Intercepto y valores altos de predictores
+perfil_solo_fatiga <- c(1, 0, 0, 1, 0, 0, 0, 0)     # Solo fatiga alta
+perfil_sin_fatiga <- c(1, 0, 0, -1, 0, 0, 0, 0)     # Solo fatiga baja
+```
+
+- Para el Modelo Stan:
+
+```{r}
+#| warning: false
+#| fig-height: 8
+#| fig-width: 10
+# Extraer muestras de parámetros
+alpha_samples <- extract(fit_logit_stan)$alpha
+beta_samples <- extract(fit_logit_stan)$beta
+
+# Crear una matriz donde cada fila es una muestra posterior completa (alpha, beta1, beta2, ...)
+beta_posterior_stan <- cbind(alpha_samples, beta_samples)
+
+# Calcular probabilidades usando bucles pero de forma más eficiente
+n_samples <- length(alpha_samples)
+prob_bajo_riesgo_Stan <- numeric(n_samples)
+prob_alto_riesgo_Stan <- numeric(n_samples)
+prob_solo_fatiga_Stan <- numeric(n_samples)
+prob_sin_fatiga_Stan <- numeric(n_samples)
+
+for (i in 1:n_samples) {
+  # Crear el vector completo de parámetros para esta muestra
+  params <- c(alpha_samples[i], beta_samples[i,])
+  
+  # Calcular el producto escalar
+  prob_bajo_riesgo_Stan[i] <- plogis(sum(params * perfil_bajo_riesgo))
+  prob_alto_riesgo_Stan[i] <- plogis(sum(params * perfil_alto_riesgo))
+  prob_solo_fatiga_Stan[i] <- plogis(sum(params * perfil_solo_fatiga))
+  prob_sin_fatiga_Stan[i] <- plogis(sum(params * perfil_sin_fatiga))
+}
+
+# Crear un tibble con todas las probabilidades para visualización
+distribuciones_predictivas_Stan <- tibble(
+  Bajo_Riesgo = prob_bajo_riesgo_Stan,
+  Alto_Riesgo = prob_alto_riesgo_Stan,
+  Solo_Fatiga = prob_solo_fatiga_Stan,
+  Sin_Fatiga = prob_sin_fatiga_Stan
+) |>
+  # Convertir a formato largo para facilitar la visualización
+  pivot_longer(
+    cols = everything(),
+    names_to = "Perfil",
+    values_to = "Probabilidad"
+  ) |>
+  # Mejorar las etiquetas para la visualización
+  mutate(
+    Perfil = factor(
+      Perfil,
+      levels = c("Bajo_Riesgo", "Alto_Riesgo", "Solo_Fatiga", "Sin_Fatiga"),
+      labels = c("Bajo riesgo\n(Anx, Dep, Fat bajas)", 
+                "Alto riesgo\n(Anx, Dep, Fat altas)",
+                "Solo fatiga alta", 
+                "Solo fatiga baja")
+    )
+  )
+
+# Crear un tibble resumen con los indicadores estadísticos
+resumen_predictivo_Stan <- tibble(
+  Perfil = c("Bajo riesgo", "Alto riesgo", "Solo fatiga alta", "Solo fatiga baja"),
+  Probabilidad_Media = c(
+    mean(prob_bajo_riesgo_Stan),
+    mean(prob_alto_riesgo_Stan),
+    mean(prob_solo_fatiga_Stan),
+    mean(prob_sin_fatiga_Stan)
+  ),
+  IC_2.5 = c(
+    quantile(prob_bajo_riesgo_Stan, 0.025),
+    quantile(prob_alto_riesgo_Stan, 0.025),
+    quantile(prob_solo_fatiga_Stan, 0.025),
+    quantile(prob_sin_fatiga_Stan, 0.025)
+  ),
+  IC_97.5 = c(
+    quantile(prob_bajo_riesgo_Stan, 0.975),
+    quantile(prob_alto_riesgo_Stan, 0.975),
+    quantile(prob_solo_fatiga_Stan, 0.975),
+    quantile(prob_sin_fatiga_Stan, 0.975)
+  )
+)
+
+# Mostrar los resultados
+resumen_predictivo_Stan
+
+# Visualización de las distribuciones predictivas posteriores
+ggplot(distribuciones_predictivas_Stan, aes(x = Probabilidad, fill = Perfil)) +
+  geom_density(alpha = 0.7) +
+  labs(
+    title = "Distribución predictiva posterior de la probabilidad de mala calidad de sueño",
+    x = "Probabilidad de mala calidad de sueño",
+    y = "Densidad"
+  )
+```
+
+Los resultados muestran, por ejemplo que individuos con alta fatiga tienen una probabilidad posterior media de `{r} resumen_predictivo_Stan$Probabilidad_Media[resumen_predictivo_Stan$Perfil == "Solo fatiga alta"]` (IC 95%: [`{r} resumen_predictivo_Stan$IC_2.5[resumen_predictivo_Stan$Perfil == "Solo fatiga alta"]`, `{r} resumen_predictivo_Stan$IC_97.5[resumen_predictivo_Stan$Perfil == "Solo fatiga alta"]`]) de experimentar mala calidad de sueño, incluso con niveles dentro de la media de ansiedad y depresión.
+
+- Para el Modelo MH:
+
+```{r}
+#| warning: false
+#| fig-height: 8
+#| fig-width: 10
+# Calcular probabilidades para cada muestra posterior
+prob_bajo_riesgo_MH <- plogis(beta_posterior %*% perfil_bajo_riesgo)
+prob_alto_riesgo_MH <- plogis(beta_posterior %*% perfil_alto_riesgo)
+prob_solo_fatiga_MH <- plogis(beta_posterior %*% perfil_solo_fatiga)
+prob_sin_fatiga_MH <- plogis(beta_posterior %*% perfil_sin_fatiga)
+
+# Crear un tibble con todas las probabilidades para visualización
+distribuciones_predictivas_MH <- tibble(
+  Bajo_Riesgo = prob_bajo_riesgo_MH,
+  Alto_Riesgo = prob_alto_riesgo_MH,
+  Solo_Fatiga = prob_solo_fatiga_MH,
+  Sin_Fatiga = prob_sin_fatiga_MH
+) |>
+  # Convertir a formato largo para facilitar la visualización
+  pivot_longer(
+    cols = everything(),
+    names_to = "Perfil",
+    values_to = "Probabilidad"
+  ) |>
+  # Mejorar las etiquetas para la visualización
+  mutate(
+    Perfil = factor(
+      Perfil,
+      levels = c("Bajo_Riesgo", "Alto_Riesgo", "Solo_Fatiga", "Sin_Fatiga"),
+      labels = c("Bajo riesgo\n(Anx, Dep, Fat bajas)", 
+                "Alto riesgo\n(Anx, Dep, Fat altas)",
+                "Solo fatiga alta", 
+                "Solo fatiga baja")
+    )
+  )
+
+# Crear un tibble resumen con los indicadores estadísticos
+resumen_predictivo_MH <- tibble(
+  Perfil = c("Bajo riesgo", "Alto riesgo", "Solo fatiga alta", "Solo fatiga baja"),
+  Probabilidad_Media = c(
+    mean(prob_bajo_riesgo_MH),
+    mean(prob_alto_riesgo_MH),
+    mean(prob_solo_fatiga_MH),
+    mean(prob_sin_fatiga_MH)
+  ),
+  IC_2.5 = c(
+    quantile(prob_bajo_riesgo_MH, 0.025),
+    quantile(prob_alto_riesgo_MH, 0.025),
+    quantile(prob_solo_fatiga_MH, 0.025),
+    quantile(prob_sin_fatiga_MH, 0.025)
+  ),
+  IC_97.5 = c(
+    quantile(prob_bajo_riesgo_MH, 0.975),
+    quantile(prob_alto_riesgo_MH, 0.975),
+    quantile(prob_solo_fatiga_MH, 0.975),
+    quantile(prob_sin_fatiga_MH, 0.975)
+  )
+)
+
+# Mostrar los resultados
+resumen_predictivo_MH
+
+# Visualización de las distribuciones predictivas posteriores
+ggplot(distribuciones_predictivas_MH, aes(x = Probabilidad, fill = Perfil)) +
+  geom_density(alpha = 0.7) +
+  labs(
+    title = "Distribución predictiva posterior de la probabilidad de mala calidad de sueño",
+    x = "Probabilidad de mala calidad de sueño",
+    y = "Densidad"
+  )
+```
+
+
+Los resultados muestran, por ejemplo que individuos con alta fatiga tienen una probabilidad posterior media de `{r} resumen_predictivo_MH$Probabilidad_Media[resumen_predictivo_MH$Perfil == "Solo fatiga alta"]` (IC 95%: [`{r} resumen_predictivo_MH$IC_2.5[resumen_predictivo_MH$Perfil == "Solo fatiga alta"]`, `{r} resumen_predictivo_MH$IC_97.5[resumen_predictivo_MH$Perfil == "Solo fatiga alta"]`]) de experimentar mala calidad de sueño, incluso con niveles dentro de la media de ansiedad y depresión.
+
+Esta aplicación de la distribución predictiva posterior nos permite no solo identificar los factores de riesgo más importantes, sino también cuantificar la probabilidad de mala calidad de sueño para diferentes perfiles de individuos, lo que tiene importantes implicaciones clínicas y prácticas.
+
+# 6.3 Contraste de Hipótesis Bayesiano
+
+```{r}
+#| fig.width: 10
+#| fig.height: 6
+# 1. Contraste de hipótesis para el modelo Stan
+# Calcular diferencias entre perfiles
+diferencias_Stan <- tibble(
+  Comparacion = c("Alto vs Bajo", "Solo Fatiga vs Sin Fatiga", "Alto vs Solo Fatiga"),
+  Diferencia_Media = c(
+    mean(prob_alto_riesgo_Stan - prob_bajo_riesgo_Stan),
+    mean(prob_solo_fatiga_Stan - prob_sin_fatiga_Stan),
+    mean(prob_alto_riesgo_Stan - prob_solo_fatiga_Stan)
+  ),
+  IC_2.5 = c(
+    quantile(prob_alto_riesgo_Stan - prob_bajo_riesgo_Stan, 0.025),
+    quantile(prob_solo_fatiga_Stan - prob_sin_fatiga_Stan, 0.025),
+    quantile(prob_alto_riesgo_Stan - prob_solo_fatiga_Stan, 0.025)
+  ),
+  IC_97.5 = c(
+    quantile(prob_alto_riesgo_Stan - prob_bajo_riesgo_Stan, 0.975),
+    quantile(prob_solo_fatiga_Stan - prob_sin_fatiga_Stan, 0.975),
+    quantile(prob_alto_riesgo_Stan - prob_solo_fatiga_Stan, 0.975)
+  ),
+  Prob_Diferencia_Positiva = c(
+    mean((prob_alto_riesgo_Stan - prob_bajo_riesgo_Stan) > 0),
+    mean((prob_solo_fatiga_Stan - prob_sin_fatiga_Stan) > 0),
+    mean((prob_alto_riesgo_Stan - prob_solo_fatiga_Stan) > 0)
+  )
+)
+
+# Mostrar resultados del contraste para el modelo Stan
+diferencias_Stan
+
+# Visualizar las diferencias para el modelo Stan
+diferencias_data_Stan <- tibble(
+  `Alto vs Bajo` = prob_alto_riesgo_Stan - prob_bajo_riesgo_Stan,
+  `Solo Fatiga vs Sin Fatiga` = prob_solo_fatiga_Stan - prob_sin_fatiga_Stan,
+  `Alto vs Solo Fatiga` = prob_alto_riesgo_Stan - prob_solo_fatiga_Stan
+) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "Comparación",
+    values_to = "Diferencia"
+  )
+
+ggplot(diferencias_data_Stan, aes(x = Diferencia, fill = Comparación)) +
+  geom_density(alpha = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Distribución posterior de las diferencias en probabilidad (Modelo Stan)",
+    x = "Diferencia en probabilidad de mala calidad de sueño",
+    y = "Densidad"
+  )
+
+# 2. Contraste de hipótesis para el modelo MH
+# Calcular diferencias entre perfiles
+diferencias_MH <- tibble(
+  Comparacion = c("Alto vs Bajo", "Solo Fatiga vs Sin Fatiga", "Alto vs Solo Fatiga"),
+  Diferencia_Media = c(
+    mean(prob_alto_riesgo_MH - prob_bajo_riesgo_MH),
+    mean(prob_solo_fatiga_MH - prob_sin_fatiga_MH),
+    mean(prob_alto_riesgo_MH - prob_solo_fatiga_MH)
+  ),
+  IC_2.5 = c(
+    quantile(prob_alto_riesgo_MH - prob_bajo_riesgo_MH, 0.025),
+    quantile(prob_solo_fatiga_MH - prob_sin_fatiga_MH, 0.025),
+    quantile(prob_alto_riesgo_MH - prob_solo_fatiga_MH, 0.025)
+  ),
+  IC_97.5 = c(
+    quantile(prob_alto_riesgo_MH - prob_bajo_riesgo_MH, 0.975),
+    quantile(prob_solo_fatiga_MH - prob_sin_fatiga_MH, 0.975),
+    quantile(prob_alto_riesgo_MH - prob_solo_fatiga_MH, 0.975)
+  ),
+  Prob_Diferencia_Positiva = c(
+    mean((prob_alto_riesgo_MH - prob_bajo_riesgo_MH) > 0),
+    mean((prob_solo_fatiga_MH - prob_sin_fatiga_MH) > 0),
+    mean((prob_alto_riesgo_MH - prob_solo_fatiga_MH) > 0)
+  )
+)
+
+# Mostrar resultados del contraste para el modelo MH
+diferencias_MH
+
+# Visualizar las diferencias para el modelo MH
+diferencias_data_MH <- tibble(
+  `Alto vs Bajo` = prob_alto_riesgo_MH - prob_bajo_riesgo_MH,
+  `Solo Fatiga vs Sin Fatiga` = prob_solo_fatiga_MH - prob_sin_fatiga_MH,
+  `Alto vs Solo Fatiga` = prob_alto_riesgo_MH - prob_solo_fatiga_MH
+) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "Comparación",
+    values_to = "Diferencia"
+  )
+
+ggplot(diferencias_data_MH, aes(x = Diferencia, fill = Comparación)) +
+  geom_density(alpha = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Distribución posterior de las diferencias en probabilidad (Modelo MH)",
+    x = "Diferencia en probabilidad de mala calidad de sueño",
+    y = "Densidad"
+  )
+```
+
+
+
+# 7. Discusión y conclusiones
+
+Los resultados del análisis bayesiano extienden los hallazgos de Thorsteinsson & Brown (2019) sugiriendo una relación bidireccional entre fatiga y sueño, donde la fatiga no solo es una consecuencia de la mala calidad del sueño, sino también un factor predictivo de la misma.
+
+La aproximación bayesiana ha permitido cuantificar la incertidumbre en las estimaciones y obtener distribuciones posteriores completas para los parámetros del modelo. Esto proporciona una base más sólida para la toma de decisiones clínicas que los simples valores p del enfoque frecuentista.
+
+Las limitaciones de este estudio incluyen su naturaleza transversal, que no permite establecer relaciones causales definitivas, y la posible presencia de variables confusoras no medidas. Futuros estudios podrían beneficiarse de diseños longitudinales y la inclusión de más variables contextuales.
+
+En conclusión, nuestro análisis bayesiano subraya la importancia de abordar la fatiga como un factor clave en las intervenciones dirigidas a mejorar la calidad del sueño, y demuestra el valor añadido de los métodos bayesianos para la modelización de fenómenos psicológicos complejos.
+
+# 8. Bibliografía
+
+- Thorsteinsson & Brown (2019). [The effects of stress, anxiety and depression on rumination, sleep and fatigue](https://pubmed.ncbi.nlm.nih.gov/30925506/)
+
+- Buyse et al. (1989). [The Pittsburgh Sleep Quality Index](https://pubmed.ncbi.nlm.nih.gov/2748771/)
+
+- Gelman, A., & Hill, J. (2006). [Data Analysis Using Regression and Multilevel/Hierarchical Models](https://www.cambridge.org/highereducation/books/data-analysis-using-regression-and-multilevel-hierarchical-models/32A29531C7FD730C3A68951A17C9D983#overview). Cambridge University Press.
