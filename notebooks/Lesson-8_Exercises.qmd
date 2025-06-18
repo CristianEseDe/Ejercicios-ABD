@@ -833,7 +833,7 @@ Los resultados muestran, por ejemplo que individuos con alta fatiga tienen una p
 
 Esta aplicación de la distribución predictiva posterior nos permite no solo identificar los factores de riesgo más importantes, sino también cuantificar la probabilidad de mala calidad de sueño para diferentes perfiles de individuos, lo que tiene importantes implicaciones clínicas y prácticas.
 
-# 6.3 Contraste de Hipótesis Bayesiano
+## 6.3 Contraste de Hipótesis Bayesiano
 
 ```{r}
 #| fig.width: 10
